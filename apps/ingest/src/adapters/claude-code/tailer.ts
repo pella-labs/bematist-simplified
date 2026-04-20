@@ -14,7 +14,7 @@ import {
 
 const DEDUP_MAX = 10_000;
 const GIT_SHA_QUEUE_SUBDIR = "git-sha-queue";
-const OFFSETS_FILE = "offsets.json";
+const OFFSETS_FILE = "offsets-claude-code.json";
 const BOM_UTF8 = "\uFEFF";
 
 export interface TailerOptions {

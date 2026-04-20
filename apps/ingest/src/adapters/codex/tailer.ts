@@ -60,11 +60,11 @@ export function defaultSessionsDir(): string {
 }
 
 export function defaultOffsetsPath(): string {
-  return join(homedir(), ".bematist", "offsets.json");
+  return join(homedir(), ".bematist", "offsets-codex.json");
 }
 
 export function defaultOffsetsLockPath(): string {
-  return join(homedir(), ".bematist", "offsets.lock");
+  return join(homedir(), ".bematist", "offsets-codex.lock");
 }
 
 export class CodexTailer {

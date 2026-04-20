@@ -165,7 +165,7 @@ describe("createTailer", () => {
     const firstCount = first.events.length;
     expect(firstCount).toBeGreaterThan(0);
 
-    const offsetsRaw = await readFile(join(stateDir, "offsets.json"), "utf8");
+    const offsetsRaw = await readFile(join(stateDir, "offsets-claude-code.json"), "utf8");
     const parsed = JSON.parse(offsetsRaw) as { version: number; files: Record<string, number> };
     expect(parsed.version).toBe(1);
     expect(parsed.files[f]).toBeGreaterThan(0);
@@ -282,7 +282,7 @@ describe("createTailer", () => {
     await Promise.all([tailer.tick(), tailer.tick(), tailer.tick()]);
     await tailer.stop();
 
-    const raw = await readFile(join(stateDir, "offsets.json"), "utf8");
+    const raw = await readFile(join(stateDir, "offsets-claude-code.json"), "utf8");
     expect(() => JSON.parse(raw)).not.toThrow();
   });
 });
