@@ -618,14 +618,14 @@ Each workstream gets a status line kept up to date by the orchestrator:
 
 **Current status:**
 
-- WS-0: todo — **NEXT.** Prerequisite: orchestrator must first create `github.com/pella-labs/bematist-simplified` (public repo in the `pella-labs` GitHub org) so WS-0 can set the remote and push.
-- WS-1: todo (blocked on WS-0)
-- WS-2: todo (blocked on WS-0)
-- WS-3: todo (blocked on WS-0)
-- WS-4: todo (blocked on WS-0, WS-1)
-- WS-5: todo (blocked on WS-0, WS-1, WS-4)
-- WS-6: todo (blocked on WS-0, WS-2)
-- WS-7: todo (blocked on WS-0, WS-1)
+- WS-0: merged (2026-04-19, commit `3f4165b`). Repo live at `github.com/pella-labs/bematist-simplified`. `bun install` / `bun run dev` / `bun run typecheck` / `bun run lint` / `bun test` all green. Wave 1 is now unblocked. Known wrinkle: `packages/db/drizzle.config.ts` does not yet import from `drizzle-kit` (dep not installed in WS-0) — WS-1 must `bun add -D drizzle-kit drizzle-orm postgres` inside `packages/db/` and restore `satisfies Config`. `packages/db/src/migrate.ts` is a hard-error stub for WS-1 to replace.
+- WS-1: todo — **NEXT (Wave 1).** Unblocked.
+- WS-2: todo — **NEXT (Wave 1).** Unblocked.
+- WS-3: todo — **NEXT (Wave 1).** Unblocked.
+- WS-4: todo (blocked on WS-1)
+- WS-5: todo (blocked on WS-1, WS-4)
+- WS-6: todo (blocked on WS-2)
+- WS-7: todo (blocked on WS-1)
 - WS-8: todo (blocked on WS-6)
 - WS-9: todo (blocked on WS-6)
 - WS-10: todo (blocked on WS-6)
