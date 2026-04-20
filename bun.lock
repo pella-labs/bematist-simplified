@@ -38,6 +38,7 @@
       "dependencies": {
         "@bematist/auth": "workspace:*",
         "@bematist/db": "workspace:*",
+        "@bematist/embed": "workspace:*",
         "@bematist/ui": "workspace:*",
         "better-auth": "^1.2.0",
         "drizzle-orm": "^0.45.2",
