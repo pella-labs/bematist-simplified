@@ -55,12 +55,15 @@ export async function verifyIngestKey(
   const id = `bm_${orgId}_${keyId}`;
   const presentedSha = sha256Hex(secret);
 
-  const rows = await sql<{ developer_id: string; key_sha256: string; revoked_at: Date | null }[]>`
-    SELECT developer_id, key_sha256, revoked_at
-    FROM ingest_keys
-    WHERE id = ${id} AND org_id = ${orgId}
-    LIMIT 1
-  `;
+  const rows = await sql.begin(async (tx) => {
+    await tx`SELECT set_config('app.current_org_id', ${orgId}, true)`;
+    return tx<{ developer_id: string; key_sha256: string; revoked_at: Date | null }[]>`
+      SELECT developer_id, key_sha256, revoked_at
+      FROM ingest_keys
+      WHERE id = ${id} AND org_id = ${orgId}
+      LIMIT 1
+    `;
+  });
 
   const dummy = "0".repeat(64);
   if (rows.length === 0) {

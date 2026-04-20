@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import type { Server } from "bun";
 import type { Sql } from "postgres";
 import { startServer } from "../src/index";
-import { createTestSchema, seedIngestKey, seedPricing, type TestSchema } from "./fixtures/db";
+import { createTestSchema, seedIngestKey, type TestSchema } from "./fixtures/db";
 import { makeEnvelope } from "./fixtures/envelopes";
 
 let db: TestSchema;
@@ -13,7 +13,6 @@ let baseUrl: string;
 beforeAll(async () => {
   db = await createTestSchema();
   sql = db.sql;
-  await seedPricing(sql);
   server = startServer({ sql, port: 0 });
   baseUrl = `http://localhost:${server.port}`;
 });
@@ -27,8 +26,8 @@ describe("POST /v1/events", () => {
   it("accepts a valid batch and returns { accepted, deduped }", async () => {
     const seeded = await seedIngestKey(sql);
     const events = [
-      makeEnvelope({ session_id: "route-s", event_seq: 0 }),
-      makeEnvelope({ session_id: "route-s", event_seq: 1 }),
+      makeEnvelope({ source_session_id: "route-s", event_seq: 0 }),
+      makeEnvelope({ source_session_id: "route-s", event_seq: 1 }),
     ];
     const res = await fetch(`${baseUrl}/v1/events`, {
       method: "POST",

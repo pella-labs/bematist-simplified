@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import type { Sql } from "postgres";
 import { insertEvents } from "../src/pipeline/insertEvents";
-import { createTestSchema, seedIngestKey, seedPricing, type TestSchema } from "./fixtures/db";
+import { createTestSchema, seedIngestKey, type TestSchema } from "./fixtures/db";
 import { makeEnvelope } from "./fixtures/envelopes";
 
 let db: TestSchema;
@@ -11,7 +11,6 @@ let sql: Sql;
 beforeAll(async () => {
   db = await createTestSchema();
   sql = db.sql;
-  await seedPricing(sql);
 });
 
 afterAll(async () => {
@@ -28,7 +27,7 @@ describe("perf", () => {
         rows.push(
           makeEnvelope({
             client_event_id: randomUUID(),
-            session_id: `perf-${b}`,
+            source_session_id: `perf-${b}`,
             event_seq: i,
           }),
         );

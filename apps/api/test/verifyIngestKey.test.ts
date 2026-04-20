@@ -90,10 +90,21 @@ describe("verifyIngestKey", () => {
     const developerId = randomUUID();
     const keyId = randomBytes(8).toString("hex");
     const storedSha = createHash("sha256").update("one secret").digest("hex");
-    await sql`
-      INSERT INTO ingest_keys (id, org_id, developer_id, key_sha256)
-      VALUES (${`bm_${orgId}_${keyId}`}, ${orgId}, ${developerId}, ${storedSha})
-    `;
+    await sql.begin(async (tx) => {
+      await tx`SELECT set_config('app.current_org_id', ${orgId}, true)`;
+      await tx`
+        INSERT INTO orgs (id, slug, name)
+        VALUES (${orgId}, ${`org-${keyId}`}, ${`org-${keyId}`})
+      `;
+      await tx`
+        INSERT INTO developers (id, org_id, email, name)
+        VALUES (${developerId}, ${orgId}, ${`dev-${keyId}@test`}, ${`dev-${keyId}`})
+      `;
+      await tx`
+        INSERT INTO ingest_keys (id, org_id, developer_id, key_sha256)
+        VALUES (${`bm_${orgId}_${keyId}`}, ${orgId}, ${developerId}, ${storedSha})
+      `;
+    });
     const bearer = `bm_${orgId}_${keyId}_${"another-secret-that-is-long-enough"}`;
     await expect(verifyIngestKey(sql, `Bearer ${bearer}`)).rejects.toBeInstanceOf(
       UnauthorizedError,

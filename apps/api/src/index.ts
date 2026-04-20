@@ -43,6 +43,8 @@ if (import.meta.main) {
     console.error("[api] DATABASE_URL is required");
     process.exit(1);
   }
+  // In prod, DATABASE_URL must use the app_bematist role (NOBYPASSRLS),
+  // not the superuser — WS-1's 0003_rls.sql creates the role + grants.
   const sql = postgres(databaseUrl, { prepare: false });
   const server = startServer({ sql });
   console.log(`[api] listening on http://localhost:${server.port}`);
