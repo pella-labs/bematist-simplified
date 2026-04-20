@@ -618,14 +618,14 @@ Each workstream gets a status line kept up to date by the orchestrator:
 
 **Current status:**
 
-- WS-0: merged (2026-04-19, commit `3f4165b`). Repo live at `github.com/pella-labs/bematist-simplified`. `bun install` / `bun run dev` / `bun run typecheck` / `bun run lint` / `bun test` all green. Wave 1 is now unblocked. Known wrinkle: `packages/db/drizzle.config.ts` does not yet import from `drizzle-kit` (dep not installed in WS-0) — WS-1 must `bun add -D drizzle-kit drizzle-orm postgres` inside `packages/db/` and restore `satisfies Config`. `packages/db/src/migrate.ts` is a hard-error stub for WS-1 to replace.
-- WS-1: todo — **NEXT (Wave 1).** Unblocked.
-- WS-2: todo — **NEXT (Wave 1).** Unblocked.
-- WS-3: todo — **NEXT (Wave 1).** Unblocked.
-- WS-4: todo (blocked on WS-1)
-- WS-5: todo (blocked on WS-1, WS-4)
-- WS-6: todo (blocked on WS-2)
-- WS-7: todo (blocked on WS-1)
+- WS-0: merged (2026-04-19, commit `3f4165b`). Monorepo scaffolding + docker-compose + shadcn `<Button>`.
+- WS-1: merged (2026-04-19, commit `2889f7a`). Drizzle schema for 14 + 1 tables (adds `webhook_deliveries`), RLS via `app_current_org()` on 12 org-scoped tables, monthly partitions for events/prompts via `ensure_partitions(3)`, pgvector HNSW on `prompts.embedding`, pricing seeded from JSON. Creates role `app_bematist` (NOBYPASSRLS, password `app_bematist_dev`). 18 tests green. Exports from `@bematist/db`: all schema tables, `getDb`, `getAdminDb`, `runMigrations`, `loadPricingSeed`. `@bematist/db/testing` exports `createMigratedDatabase` for test harnesses. Production `DATABASE_URL` must use `app_bematist`, not the superuser.
+- WS-2: merged (2026-04-19, commit `884e86d`). POST `/v1/events` with bearer `bm_<orgId>_<keyId>_<secret>`, batch cap 1000. `EventEnvelope` Zod schema in `@bematist/contracts` (strict, discriminated union on `kind`, `payload.kind === envelope.kind` refine). `insertEvents` upserts sessions per `(source, source_session_id)` then inserts events referencing `sessions.id`. Cost pinned on insert. 40 WS-2 tests green (57 total including WS-1's). 10k batch insert ~270ms.
+- WS-3: merged (2026-04-19, commit `641d859`). Landing `/` + `/install`, Motion animations, Tailwind v4 `@theme` + dark mode. Brand tokens in `@bematist/ui/brand`. Install CTA points at placeholder `bematist.up.railway.app` — WS-14 replaces. Playwright e2e uses `.e2e.ts` suffix to dodge `bun test`'s default glob.
+- WS-4: todo — **NEXT (Wave 1 continuation).** Unblocked by WS-1.
+- WS-5: todo (blocked on WS-4)
+- WS-6: todo — **NEXT (Wave 1 continuation).** Unblocked by WS-2.
+- WS-7: todo — **NEXT (Wave 1 continuation).** Unblocked by WS-1.
 - WS-8: todo (blocked on WS-6)
 - WS-9: todo (blocked on WS-6)
 - WS-10: todo (blocked on WS-6)
