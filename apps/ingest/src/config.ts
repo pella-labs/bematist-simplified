@@ -8,7 +8,7 @@ export const AdapterConfigSchema = z
   .object({
     enabled: z.boolean(),
   })
-  .strict();
+  .passthrough();
 
 export const ConfigSchema = z
   .object({
