@@ -1,0 +1,11 @@
+{"timestamp":"2026-04-16T14:00:00.000Z","type":"session_meta","payload":{"id":"sess-basic-001","timestamp":"2026-04-16T14:00:00.000Z","cwd":"/tmp/repo-basic","originator":"Codex Desktop","cli_version":"0.120.0","source":"vscode","model_provider":"openai"}}
+{"session_id":"sess-basic-001","timestamp":"2026-04-16T14:00:00.100Z","type":"event_msg","payload":{"type":"turn_context","turn_id":"t1","cwd":"/tmp/repo-basic","model":"gpt-5.3-codex","collaboration_mode":{"mode":"default","settings":{"model":"gpt-5.3-codex"}}}}
+{"session_id":"sess-basic-001","turn_id":"t1","timestamp":"2026-04-16T14:00:00.250Z","event_msg":{"type":"user_message","payload":{"role":"user","content":"refactor foo.ts"}}}
+{"session_id":"sess-basic-001","turn_id":"t1","timestamp":"2026-04-16T14:00:01.400Z","event_msg":{"type":"exec_command_start","payload":{"command":"ls -la","cwd":"/tmp/repo-basic"}}}
+{"session_id":"sess-basic-001","turn_id":"t1","timestamp":"2026-04-16T14:00:01.520Z","event_msg":{"type":"exec_command_end","payload":{"exit_code":0,"duration_ms":120,"stdout_bytes":480}}}
+{"session_id":"sess-basic-001","turn_id":"t1","timestamp":"2026-04-16T14:00:02.400Z","event_msg":{"type":"agent_message","payload":{"role":"assistant","model":"gpt-5.3-codex","content":"here is the refactor"}}}
+{"session_id":"sess-basic-001","turn_id":"t1","timestamp":"2026-04-16T14:00:02.500Z","event_msg":{"type":"token_count","payload":{"model":"gpt-5.3-codex","input_tokens":1200,"output_tokens":300,"cached_input_tokens":400,"total_tokens":1500}}}
+{"session_id":"sess-basic-001","turn_id":"t2","timestamp":"2026-04-16T14:00:03.000Z","event_msg":{"type":"user_message","payload":{"role":"user","content":"run the tests"}}}
+{"session_id":"sess-basic-001","turn_id":"t2","timestamp":"2026-04-16T14:00:04.000Z","event_msg":{"type":"agent_message","payload":{"role":"assistant","model":"gpt-5.3-codex","content":"running tests"}}}
+{"session_id":"sess-basic-001","turn_id":"t2","timestamp":"2026-04-16T14:00:05.000Z","event_msg":{"type":"token_count","payload":{"model":"gpt-5.3-codex","input_tokens":2100,"output_tokens":500,"cached_input_tokens":800,"total_tokens":2600}}}
+{"type":"session_end","session_id":"sess-basic-001","timestamp":"2026-04-16T14:00:06.000Z"}
