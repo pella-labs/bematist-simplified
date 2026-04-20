@@ -24,6 +24,10 @@
     },
     "apps/ingest": {
       "name": "@bematist/ingest",
+      "dependencies": {
+        "@bematist/contracts": "workspace:*",
+        "zod": "^3.23.0",
+      },
       "devDependencies": {
         "typescript": "^5.6.0",
       },
