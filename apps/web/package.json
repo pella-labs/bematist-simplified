@@ -11,9 +11,14 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@bematist/auth": "workspace:*",
+    "@bematist/db": "workspace:*",
     "@bematist/ui": "workspace:*",
+    "better-auth": "^1.2.0",
+    "drizzle-orm": "^0.45.2",
     "motion": "^12.0.0",
     "next": "^16.0.0",
+    "postgres": "^3.4.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

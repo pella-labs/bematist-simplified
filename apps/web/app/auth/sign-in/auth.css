@@ -1,0 +1,153 @@
+.bematist-marketing .mk-auth-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.bematist-marketing .mk-auth-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px var(--mk-grid-size);
+  border-bottom: 1px solid var(--mk-border);
+}
+
+.bematist-marketing .mk-auth-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 72px 24px;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.bematist-marketing .mk-auth-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--mk-border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--mk-border) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.65), transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.65), transparent 70%);
+  opacity: 0.35;
+}
+
+.bematist-marketing .mk-auth-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 480px;
+  padding: 44px 40px;
+  background: var(--mk-bg-elevated);
+  border: 1px solid var(--mk-border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bematist-marketing .mk-auth-label {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--mk-accent);
+}
+
+.bematist-marketing .mk-auth-title {
+  font-size: 32px;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.bematist-marketing .mk-auth-lede {
+  color: var(--mk-ink-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.bematist-marketing .mk-auth-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 20px;
+  margin-top: 8px;
+  background: var(--mk-ink);
+  color: var(--mk-bg);
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+.bematist-marketing .mk-auth-btn:hover:not(:disabled) {
+  background: var(--mk-accent);
+}
+
+.bematist-marketing .mk-auth-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bematist-marketing .mk-auth-err {
+  color: #d66a6a;
+  font-size: 13px;
+  margin: 0;
+}
+
+.bematist-marketing .mk-auth-fine {
+  color: var(--mk-ink-faint);
+  font-size: 11px;
+  line-height: 1.55;
+  margin: 12px 0 0;
+}
+
+.bematist-marketing .mk-auth-fine code {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  background: rgba(237, 232, 222, 0.05);
+  padding: 1px 6px;
+  border-radius: 2px;
+  color: var(--mk-ink-muted);
+}
+
+.bematist-marketing .mk-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bematist-marketing .mk-auth-input {
+  height: 42px;
+  padding: 0 14px;
+  background: var(--mk-bg);
+  color: var(--mk-ink);
+  border: 1px solid var(--mk-border);
+  font-family: var(--font-sans, "Inter", sans-serif);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.bematist-marketing .mk-auth-input:focus {
+  border-color: var(--mk-accent);
+}
+
+.bematist-marketing .mk-auth-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.bematist-marketing .mk-auth-row .mk-btn-ghost {
+  height: 44px;
+}
