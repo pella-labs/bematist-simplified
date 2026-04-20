@@ -1,0 +1,629 @@
+.bematist-marketing .dash-shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+  gap: 0;
+}
+
+.bematist-marketing .dash-aside {
+  border-right: 1px solid var(--mk-border);
+  display: flex;
+  flex-direction: column;
+  padding: 24px 20px;
+  gap: 28px;
+  background: var(--mk-bg);
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  min-height: 100vh;
+}
+
+.bematist-marketing .dash-org {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bematist-marketing .dash-org-name {
+  color: var(--mk-ink);
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+.bematist-marketing .dash-org-role {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--mk-ink-muted);
+}
+
+.bematist-marketing .dash-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bematist-marketing .dash-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 12px;
+}
+.bematist-marketing .dash-nav-group-label {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--mk-ink-faint);
+  margin: 8px 10px 4px;
+}
+.bematist-marketing .dash-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--mk-ink-muted);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    border-color 0.15s;
+}
+.bematist-marketing .dash-nav-link:hover {
+  color: var(--mk-ink);
+  background: var(--mk-accent-muted);
+}
+.bematist-marketing .dash-nav-link[aria-current="page"] {
+  color: var(--mk-ink);
+  border-left-color: var(--mk-accent);
+  background: rgba(110, 138, 111, 0.08);
+}
+.bematist-marketing .dash-nav-link-icon {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+  flex-shrink: 0;
+}
+
+.bematist-marketing .dash-user {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--mk-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bematist-marketing .dash-user-name {
+  font-size: 13px;
+  color: var(--mk-ink);
+}
+.bematist-marketing .dash-user-email {
+  font-size: 11px;
+  color: var(--mk-ink-muted);
+  word-break: break-all;
+}
+
+.bematist-marketing .dash-main {
+  padding: 40px 48px 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  min-width: 0;
+}
+
+.bematist-marketing .dash-page-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 960px;
+}
+.bematist-marketing .dash-page-title {
+  font-size: 32px;
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--mk-ink);
+}
+.bematist-marketing .dash-page-subtitle {
+  margin: 0;
+  color: var(--mk-ink-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 680px;
+}
+.bematist-marketing .dash-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.bematist-marketing .dash-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1px;
+  background: var(--mk-border);
+  border: 1px solid var(--mk-border);
+}
+.bematist-marketing .dash-tile {
+  background: var(--mk-bg);
+  padding: 22px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 120px;
+}
+.bematist-marketing .dash-tile-label {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--mk-ink-muted);
+}
+.bematist-marketing .dash-tile-value {
+  font-size: 30px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--mk-ink);
+  font-weight: 500;
+}
+.bematist-marketing .dash-tile-sub {
+  font-size: 12px;
+  color: var(--mk-ink-muted);
+  line-height: 1.5;
+}
+.bematist-marketing .dash-tile.is-feature {
+  background: linear-gradient(
+    135deg,
+    rgba(110, 138, 111, 0.12),
+    rgba(176, 123, 62, 0.06) 60%,
+    var(--mk-bg-elevated)
+  );
+  border-left: 2px solid var(--mk-accent);
+}
+.bematist-marketing .dash-tile.is-feature .dash-tile-label {
+  color: var(--mk-accent);
+}
+
+.bematist-marketing .dash-delta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.bematist-marketing .dash-delta-value {
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+}
+.bematist-marketing .dash-delta-positive {
+  color: var(--mk-accent);
+}
+.bematist-marketing .dash-delta-negative {
+  color: var(--mk-warm);
+}
+.bematist-marketing .dash-delta-breakdown {
+  font-size: 12px;
+  color: var(--mk-ink-muted);
+  line-height: 1.6;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+}
+
+.bematist-marketing .dash-card {
+  border: 1px solid var(--mk-border);
+  background: var(--mk-bg);
+}
+.bematist-marketing .dash-card-head {
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--mk-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.bematist-marketing .dash-card-title {
+  margin: 0;
+  font-size: 14px;
+  color: var(--mk-ink);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.bematist-marketing .dash-card-sub {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 11px;
+  color: var(--mk-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.bematist-marketing .dash-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.bematist-marketing .dash-table thead th {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--mk-ink-muted);
+  text-align: left;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--mk-border);
+  background: var(--mk-bg-elevated);
+  font-weight: 500;
+}
+.bematist-marketing .dash-table tbody td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--mk-border);
+  vertical-align: middle;
+  color: var(--mk-ink);
+}
+.bematist-marketing .dash-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.bematist-marketing .dash-table tbody tr:hover td {
+  background: rgba(110, 138, 111, 0.04);
+}
+.bematist-marketing .dash-table-link {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.bematist-marketing .dash-table-link:hover {
+  color: var(--mk-accent);
+}
+.bematist-marketing .dash-table td.num,
+.bematist-marketing .dash-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+}
+
+.bematist-marketing .dash-chip {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border: 1px solid var(--mk-border);
+  color: var(--mk-ink-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.bematist-marketing .dash-chip.is-accent {
+  color: var(--mk-accent);
+  border-color: var(--mk-accent);
+  background: var(--mk-accent-muted);
+}
+.bematist-marketing .dash-chip.is-warm {
+  color: var(--mk-warm);
+  border-color: var(--mk-warm);
+  background: rgba(176, 123, 62, 0.12);
+}
+.bematist-marketing .dash-chip.is-muted {
+  color: var(--mk-ink-faint);
+}
+
+.bematist-marketing .dash-source-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  background: var(--mk-ink-muted);
+}
+.bematist-marketing .dash-source-dot.claude-code {
+  background: var(--mk-accent);
+}
+.bematist-marketing .dash-source-dot.codex {
+  background: var(--mk-warm);
+}
+.bematist-marketing .dash-source-dot.cursor {
+  background: #7d8ac9;
+}
+
+.bematist-marketing .dash-empty {
+  padding: 48px 28px;
+  border: 1px dashed var(--mk-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  color: var(--mk-ink-muted);
+  background: var(--mk-bg-elevated);
+}
+.bematist-marketing .dash-empty-title {
+  color: var(--mk-ink);
+  font-weight: 500;
+  margin: 0;
+  font-size: 16px;
+}
+.bematist-marketing .dash-empty-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  max-width: 520px;
+}
+.bematist-marketing .dash-empty code {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  background: var(--mk-bg-terminal);
+  padding: 2px 6px;
+  font-size: 12px;
+  color: var(--mk-accent);
+  border: 1px solid var(--mk-border);
+}
+
+.bematist-marketing .dash-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--mk-border);
+  border: 1px solid var(--mk-border);
+}
+.bematist-marketing .dash-turn {
+  background: var(--mk-bg);
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bematist-marketing .dash-turn-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.bematist-marketing .dash-turn-kind {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--mk-accent);
+}
+.bematist-marketing .dash-turn-kind.is-assistant {
+  color: var(--mk-warm);
+}
+.bematist-marketing .dash-turn-kind.is-tool {
+  color: var(--mk-ink-muted);
+}
+.bematist-marketing .dash-turn-body {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--mk-ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.bematist-marketing .dash-turn-meta {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 11px;
+  color: var(--mk-ink-muted);
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.bematist-marketing .dash-filter-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 12px 18px;
+  border: 1px solid var(--mk-border);
+  background: var(--mk-bg-elevated);
+}
+.bematist-marketing .dash-filter-label {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--mk-ink-muted);
+}
+.bematist-marketing .dash-filter-select,
+.bematist-marketing .dash-filter-input {
+  background: var(--mk-bg);
+  border: 1px solid var(--mk-border);
+  color: var(--mk-ink);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+}
+.bematist-marketing .dash-filter-select:focus,
+.bematist-marketing .dash-filter-input:focus {
+  outline: none;
+  border-color: var(--mk-accent);
+}
+
+.bematist-marketing .dash-devcard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1px;
+  background: var(--mk-border);
+  border: 1px solid var(--mk-border);
+}
+.bematist-marketing .dash-devcard {
+  background: var(--mk-bg);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s;
+}
+.bematist-marketing .dash-devcard:hover {
+  background: var(--mk-bg-elevated);
+}
+.bematist-marketing .dash-devcard-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--mk-ink);
+  letter-spacing: -0.01em;
+}
+.bematist-marketing .dash-devcard-email {
+  font-size: 12px;
+  color: var(--mk-ink-muted);
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  word-break: break-all;
+}
+.bematist-marketing .dash-devcard-stats {
+  display: flex;
+  gap: 18px;
+  margin-top: 4px;
+}
+.bematist-marketing .dash-devcard-stat-val {
+  font-size: 18px;
+  color: var(--mk-ink);
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  letter-spacing: -0.01em;
+}
+.bematist-marketing .dash-devcard-stat-lbl {
+  font-size: 10px;
+  color: var(--mk-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+}
+
+.bematist-marketing .dash-compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  background: var(--mk-border);
+  border: 1px solid var(--mk-border);
+}
+@media (max-width: 900px) {
+  .bematist-marketing .dash-compare-grid {
+    grid-template-columns: 1fr;
+  }
+  .bematist-marketing .dash-shell {
+    grid-template-columns: 1fr;
+  }
+  .bematist-marketing .dash-aside {
+    position: static;
+    min-height: auto;
+  }
+  .bematist-marketing .dash-main {
+    padding: 28px 20px 80px;
+  }
+}
+
+.bematist-marketing .dash-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--mk-border);
+  background: var(--mk-bg);
+  color: var(--mk-ink);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
+}
+.bematist-marketing .dash-btn:hover {
+  border-color: var(--mk-accent);
+  color: var(--mk-accent);
+}
+.bematist-marketing .dash-btn.is-primary {
+  background: var(--mk-accent);
+  color: var(--mk-bg);
+  border-color: var(--mk-accent);
+}
+.bematist-marketing .dash-btn.is-primary:hover {
+  background: var(--mk-ink);
+  color: var(--mk-bg);
+  border-color: var(--mk-ink);
+}
+.bematist-marketing .dash-btn.is-danger {
+  color: var(--mk-warm);
+  border-color: var(--mk-warm);
+}
+.bematist-marketing .dash-btn.is-danger:hover {
+  background: var(--mk-warm);
+  color: var(--mk-bg);
+}
+.bematist-marketing .dash-btn[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bematist-marketing .dash-mono {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+}
+
+.bematist-marketing .dash-kvs {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 18px;
+  font-size: 13px;
+}
+.bematist-marketing .dash-kvs dt {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 11px;
+  color: var(--mk-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+.bematist-marketing .dash-kvs dd {
+  margin: 0;
+  color: var(--mk-ink);
+  word-break: break-word;
+}
+
+.bematist-marketing .dash-banner {
+  padding: 14px 18px;
+  border: 1px solid var(--mk-border);
+  background: var(--mk-bg-elevated);
+  color: var(--mk-ink);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.bematist-marketing .dash-banner.is-warn {
+  border-color: var(--mk-warm);
+  background: rgba(176, 123, 62, 0.1);
+}
+.bematist-marketing .dash-banner.is-ok {
+  border-color: var(--mk-accent);
+  background: var(--mk-accent-muted);
+}
+
+.bematist-marketing .dash-sub-nav {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--mk-border);
+}
+.bematist-marketing .dash-sub-nav a {
+  padding: 10px 16px;
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--mk-ink-muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+  margin-bottom: -1px;
+}
+.bematist-marketing .dash-sub-nav a:hover {
+  color: var(--mk-ink);
+}
+.bematist-marketing .dash-sub-nav a[aria-current="page"] {
+  color: var(--mk-ink);
+  border-bottom-color: var(--mk-accent);
+}
