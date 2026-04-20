@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: bematist-postgres
+    environment:
+      POSTGRES_USER: bematist
+      POSTGRES_PASSWORD: bematist
+      POSTGRES_DB: bematist
+    ports:
+      - "5432:5432"
+    volumes:
+      - bematist-pgdata:/var/lib/postgresql/data
+
+volumes:
+  bematist-pgdata:

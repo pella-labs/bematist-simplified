@@ -1,0 +1,4 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "include": ["src/**/*.ts", "schema.ts", "drizzle.config.ts"]
+}

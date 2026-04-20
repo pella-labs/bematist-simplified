@@ -1,0 +1,26 @@
+{
+  "name": "bematist-simplified",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.2.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run scripts/dev.ts",
+    "typecheck": "bun run scripts/typecheck.ts",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "bun test",
+    "migrate": "bun run --cwd packages/db migrate"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
+    "bun-types": "^1.2.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "bun": ">=1.2.0"
+  }
+}
