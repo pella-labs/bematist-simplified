@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./button": "./src/components/button.tsx",
+    "./brand": "./src/brand.config.ts",
     "./styles.css": "./src/styles.css",
     "./utils": "./src/lib/utils.ts"
   },

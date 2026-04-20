@@ -27,3 +27,8 @@ Thumbs.db
 
 .turbo
 .cache
+
+playwright-report
+test-results
+blob-report
+.playwright
