@@ -1,0 +1,80 @@
+{
+  "pricing_version": "v1",
+  "models": [
+    {
+      "pricing_version": "v1",
+      "model": "claude-sonnet-4-6",
+      "provider": "anthropic",
+      "input_per_mtok": "3.00",
+      "output_per_mtok": "15.00",
+      "cache_read_per_mtok": "0.30",
+      "cache_write_per_mtok": "3.75",
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null
+    },
+    {
+      "pricing_version": "v1",
+      "model": "claude-opus-4-7",
+      "provider": "anthropic",
+      "input_per_mtok": "15.00",
+      "output_per_mtok": "75.00",
+      "cache_read_per_mtok": "1.50",
+      "cache_write_per_mtok": "18.75",
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null
+    },
+    {
+      "pricing_version": "v1",
+      "model": "claude-haiku-4-5",
+      "provider": "anthropic",
+      "input_per_mtok": "1.00",
+      "output_per_mtok": "5.00",
+      "cache_read_per_mtok": "0.10",
+      "cache_write_per_mtok": "1.25",
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null
+    },
+    {
+      "pricing_version": "v1",
+      "model": "gpt-5",
+      "provider": "openai",
+      "input_per_mtok": "1.25",
+      "output_per_mtok": "10.00",
+      "cache_read_per_mtok": "0.125",
+      "cache_write_per_mtok": null,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null
+    },
+    {
+      "pricing_version": "v1",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "input_per_mtok": "0.25",
+      "output_per_mtok": "2.00",
+      "cache_read_per_mtok": "0.025",
+      "cache_write_per_mtok": null,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null
+    },
+    {
+      "pricing_version": "v1",
+      "model": "cursor-sonnet",
+      "provider": "cursor",
+      "input_per_mtok": "3.00",
+      "output_per_mtok": "15.00",
+      "cache_read_per_mtok": "0.30",
+      "cache_write_per_mtok": "3.75",
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null
+    }
+  ],
+  "subscriptions": {
+    "max_200": { "provider": "anthropic", "monthly_usd": 200 },
+    "pro_20": { "provider": "anthropic", "monthly_usd": 20 },
+    "business": { "provider": "anthropic", "monthly_usd": 150 },
+    "plus": { "provider": "openai", "monthly_usd": 20 },
+    "pro": { "provider": "openai", "monthly_usd": 200 },
+    "team": { "provider": "openai", "monthly_usd": 200 },
+    "api_key": { "provider": "any", "monthly_usd": 0 }
+  }
+}

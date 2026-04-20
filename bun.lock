@@ -86,6 +86,11 @@
     "packages/embed": {
       "name": "@bematist/embed",
       "version": "0.0.0",
+      "dependencies": {
+        "@bematist/contracts": "workspace:*",
+        "@bematist/db": "workspace:*",
+        "drizzle-orm": "^0.45.2",
+      },
       "devDependencies": {
         "typescript": "^5.6.0",
       },
