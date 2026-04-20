@@ -7,6 +7,7 @@ const APP_PASSWORD = "app_bematist_dev";
 
 export interface TestSchema {
   sql: Sql;
+  adminSql: Sql;
   dbName: string;
   close: () => Promise<void>;
 }
@@ -21,11 +22,14 @@ function withAppRole(adminUrl: string): string {
 export async function createTestSchema(): Promise<TestSchema> {
   const temp: TempDatabase = await createMigratedDatabase();
   const sql = postgres(withAppRole(temp.url), { max: 4, prepare: false });
+  const adminSql = postgres(temp.url, { max: 2, prepare: false });
   return {
     sql,
+    adminSql,
     dbName: temp.name,
     async close() {
       await sql.end({ timeout: 1 });
+      await adminSql.end({ timeout: 1 });
       await temp.drop();
     },
   };

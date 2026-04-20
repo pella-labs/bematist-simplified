@@ -1,0 +1,244 @@
+.bematist-marketing .admin-container {
+  padding-top: 40px;
+  padding-bottom: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+  min-height: 100vh;
+}
+
+.bematist-marketing .admin-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--mk-border);
+}
+
+.bematist-marketing .admin-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.bematist-marketing .admin-role-badge {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border: 1px solid var(--mk-accent);
+  color: var(--mk-accent);
+  background: var(--mk-accent-muted);
+}
+
+.bematist-marketing .admin-main {
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+  max-width: 960px;
+}
+
+.bematist-marketing .admin-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bematist-marketing .admin-title {
+  font-size: 40px;
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+
+.bematist-marketing .admin-subtitle {
+  color: var(--mk-ink-muted);
+  font-size: 15px;
+  line-height: 1.6;
+  max-width: 640px;
+  margin: 0;
+}
+
+.bematist-marketing .admin-banner {
+  padding: 14px 18px;
+  border: 1px solid var(--mk-border);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.bematist-marketing .admin-banner-ok {
+  border-color: var(--mk-accent);
+  background: var(--mk-accent-muted);
+  color: var(--mk-ink);
+}
+.bematist-marketing .admin-banner-warn {
+  border-color: var(--mk-warm);
+  background: rgba(176, 123, 62, 0.12);
+  color: var(--mk-ink);
+}
+
+.bematist-marketing .admin-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.bematist-marketing .admin-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.bematist-marketing .admin-section-title {
+  font-size: 18px;
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.bematist-marketing .admin-cta-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  height: 40px;
+  background: var(--mk-ink);
+  color: var(--mk-bg);
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: background 0.18s;
+}
+
+.bematist-marketing .admin-cta-primary:hover {
+  background: var(--mk-accent);
+  color: var(--mk-ink);
+}
+
+.bematist-marketing .admin-cta-dot {
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  border-radius: 50%;
+}
+
+.bematist-marketing .admin-cta-disabled {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 11px;
+  color: var(--mk-ink-faint);
+}
+
+.bematist-marketing .admin-empty {
+  padding: 28px 24px;
+  border: 1px dashed var(--mk-border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bematist-marketing .admin-empty-title {
+  margin: 0;
+  font-weight: 500;
+  color: var(--mk-ink);
+}
+.bematist-marketing .admin-empty-body {
+  margin: 0;
+  color: var(--mk-ink-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.bematist-marketing .admin-install-list,
+.bematist-marketing .admin-repo-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--mk-border);
+}
+
+.bematist-marketing .admin-install-row,
+.bematist-marketing .admin-repo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--mk-border);
+  gap: 20px;
+}
+.bematist-marketing .admin-install-row:last-child,
+.bematist-marketing .admin-repo-row:last-child {
+  border-bottom: none;
+}
+
+.bematist-marketing .admin-install-id {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.bematist-marketing .admin-install-id-value {
+  font-size: 14px;
+  color: var(--mk-ink);
+}
+
+.bematist-marketing .admin-install-status {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 12px;
+}
+
+.bematist-marketing .admin-status {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 3px 8px;
+  border: 1px solid currentColor;
+}
+.bematist-marketing .admin-status-active {
+  color: var(--mk-accent);
+}
+.bematist-marketing .admin-status-deleted {
+  color: var(--mk-warm);
+}
+.bematist-marketing .admin-status-suspended {
+  color: var(--mk-ink-faint);
+}
+
+.bematist-marketing .admin-repo-name {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  min-width: 0;
+}
+.bematist-marketing .admin-repo-branch {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 11px;
+  color: var(--mk-ink-faint);
+  letter-spacing: 0.02em;
+}
+
+.bematist-marketing .admin-chip {
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 3px 9px;
+  border: 1px solid currentColor;
+}
+.bematist-marketing .admin-chip-accent {
+  color: var(--mk-accent);
+  background: var(--mk-accent-muted);
+}
+.bematist-marketing .admin-chip-muted {
+  color: var(--mk-ink-faint);
+}
+
+.bematist-marketing .admin-help {
+  font-size: 12px;
+  line-height: 1.6;
+  max-width: 640px;
+  margin-top: 4px;
+}
