@@ -13,7 +13,8 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "test": "bun test",
-    "migrate": "bun run --cwd packages/db migrate"
+    "migrate": "bun run --cwd packages/db migrate",
+    "worker": "bun run --cwd apps/worker worker"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",
