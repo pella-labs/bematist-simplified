@@ -22,7 +22,7 @@ import { runCaptureGitShaCli } from "./commands/captureGitSha";
 import { runCursorHook } from "./commands/cursorHook";
 import { detectTools } from "./commands/detect";
 import { runDoctor } from "./commands/doctor";
-import { runOnboard } from "./commands/onboard";
+import { runBackfillConsentStep, runOnboard } from "./commands/onboard";
 import {
   installService,
   resolveDeps,
@@ -254,10 +254,16 @@ async function cmdRun(
 async function cmdStart(
   io: CliIO,
   path: string,
-  _args: string[],
+  args: string[],
   log: (m: string) => void,
   err: (m: string) => void,
 ): Promise<number> {
+  const startFlags = parseStartFlags(args);
+  if (!startFlags.ok) {
+    err(startFlags.message);
+    return 2;
+  }
+
   const current = await readConfig(path);
   if (!current) {
     err("no config found — run `bm-pilot login <token>` first");
@@ -307,6 +313,7 @@ async function cmdStart(
     const fallback = await startFallbackDaemon(binaryPath, log);
     if (fallback.ok) {
       log(`[ok] fallback daemon started pid=${fallback.pid}`);
+      await runConsentAfterService(io, path, startFlags.flag, log);
       return 0;
     }
     err(`[fail] fallback daemon failed: ${fallback.message}`);
@@ -320,7 +327,68 @@ async function cmdStart(
   } else {
     log(`[ok] service started`);
   }
+
+  await runConsentAfterService(io, path, startFlags.flag, log);
   return 0;
+}
+
+async function runConsentAfterService(
+  io: CliIO,
+  path: string,
+  flag: "accept" | "decline" | null,
+  log: (m: string) => void,
+): Promise<void> {
+  const isTty = Boolean(process.stdin.isTTY);
+  const prompt = async (q: string): Promise<string> => {
+    if (io.prompt) return io.prompt(q);
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    try {
+      return await rl.question(q);
+    } finally {
+      rl.close();
+    }
+  };
+  try {
+    await runBackfillConsentStep({
+      configPath: path,
+      home: homedir(),
+      env: io.env,
+      flag,
+      isTty,
+      prompt,
+      log,
+    });
+  } catch (e) {
+    log(`[warn] backfill failed: ${messageOf(e)}`);
+  }
+}
+
+interface StartFlagsOk {
+  ok: true;
+  flag: "accept" | "decline" | null;
+}
+interface StartFlagsErr {
+  ok: false;
+  message: string;
+}
+type StartFlags = StartFlagsOk | StartFlagsErr;
+
+function parseStartFlags(args: string[]): StartFlags {
+  let flag: "accept" | "decline" | null = null;
+  for (const a of args) {
+    if (a === "--backfill") {
+      if (flag === "decline")
+        return { ok: false, message: "cannot combine --backfill and --no-backfill" };
+      flag = "accept";
+    } else if (a === "--no-backfill") {
+      if (flag === "accept")
+        return { ok: false, message: "cannot combine --backfill and --no-backfill" };
+      flag = "decline";
+    } else {
+      return { ok: false, message: `unknown start flag: ${a}` };
+    }
+  }
+  return { ok: true, flag };
 }
 
 async function cmdStop(

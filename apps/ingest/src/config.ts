@@ -10,6 +10,13 @@ export const AdapterConfigSchema = z
   })
   .passthrough();
 
+export const OnboardingConfigSchema = z
+  .object({
+    backfillPromptedAt: z.string().datetime({ offset: true }).optional(),
+    backfillAccepted: z.boolean().optional(),
+  })
+  .strict();
+
 export const ConfigSchema = z
   .object({
     apiUrl: z.string().url(),
@@ -21,6 +28,7 @@ export const ConfigSchema = z
     // `core.hooksPath` so `bm-pilot git disable` can restore it. `null`
     // means "no prior hooks path was set".
     gitHooksPathBackup: z.string().nullable().optional(),
+    onboarding: OnboardingConfigSchema.optional(),
   })
   .strict();
 

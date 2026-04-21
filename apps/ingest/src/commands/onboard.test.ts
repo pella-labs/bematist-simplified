@@ -3,7 +3,8 @@ import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { freshConfig, writeConfig } from "../config";
-import { runOnboard } from "./onboard";
+import type { ConsentDeps, ConsentResult } from "./backfillConsent";
+import { runBackfillConsentStep, runOnboard } from "./onboard";
 
 let tmp: string;
 
@@ -161,6 +162,120 @@ describe("runOnboard", () => {
     expect(res.warnings.length).toBeGreaterThan(0);
     expect(res.warnings[0]).toMatch(/claude-code/);
     expect(installers.codexCalls).toBe(1);
+  });
+
+  it("runBackfillConsentStep passes configPath, flag, and isTty to ensure", async () => {
+    const cfgPath = join(tmp, "config.json");
+    await seedLoggedInConfig(cfgPath);
+
+    let seen: ConsentDeps | null = null;
+    const result = await runBackfillConsentStep({
+      configPath: cfgPath,
+      home: tmp,
+      env: {},
+      flag: "decline",
+      isTty: false,
+      prompt: async () => "",
+      log: () => {},
+      ensure: async (deps) => {
+        seen = deps;
+        return { ran: false, reason: "flag-declined" } as ConsentResult;
+      },
+    });
+
+    expect(result.ran).toBe(false);
+    expect(seen).not.toBeNull();
+    if (!seen) throw new Error("unreachable");
+    const capturedDeps = seen as ConsentDeps;
+    expect(capturedDeps.configPath).toBe(cfgPath);
+    expect(capturedDeps.flag).toBe("decline");
+    expect(capturedDeps.isTty).toBe(false);
+  });
+
+  it("runBackfillConsentStep counts historical Claude + Codex files via the real readers", async () => {
+    const cfgPath = join(tmp, "config.json");
+    await seedLoggedInConfig(cfgPath);
+    const projects = join(tmp, ".claude", "projects", "p1");
+    await mkdir(projects, { recursive: true });
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(join(projects, "a.jsonl"), "{}\n");
+    await writeFile(join(projects, "b.jsonl"), "{}\n");
+    const codexSess = join(tmp, ".codex", "sessions", "2026", "04");
+    await mkdir(codexSess, { recursive: true });
+    await writeFile(join(codexSess, "rollout-x.jsonl"), "{}\n");
+
+    let counts: { claudeCode: number; codex: number; oldestMtime?: number } | null = null;
+    await runBackfillConsentStep({
+      configPath: cfgPath,
+      home: tmp,
+      env: {},
+      flag: null,
+      isTty: false,
+      prompt: async () => "",
+      log: () => {},
+      ensure: async (deps) => {
+        counts = await deps.detectHistorical();
+        return { ran: false, reason: "non-interactive" } as ConsentResult;
+      },
+    });
+
+    expect(counts).not.toBeNull();
+    if (!counts) throw new Error("unreachable");
+    const c = counts as { claudeCode: number; codex: number; oldestMtime?: number };
+    expect(c.claudeCode).toBe(2);
+    expect(c.codex).toBe(1);
+    expect(c.oldestMtime).toBeTypeOf("number");
+  });
+
+  it("runBackfillConsentStep prints a summary line when backfill runs", async () => {
+    const cfgPath = join(tmp, "config.json");
+    await seedLoggedInConfig(cfgPath);
+    const lines: string[] = [];
+
+    await runBackfillConsentStep({
+      configPath: cfgPath,
+      home: tmp,
+      env: {},
+      flag: "accept",
+      isTty: false,
+      prompt: async () => "",
+      log: (m) => lines.push(m),
+      ensure: async () =>
+        ({
+          ran: true,
+          result: {
+            exitCode: 0,
+            summary: {
+              claude_code: { files: 5, envelopes: 42, bytes: 1024 },
+              codex: { files: 2, envelopes: 8, bytes: 512 },
+              cursor: { skipped: true, reason: "no historical record" },
+            },
+          },
+        }) as ConsentResult,
+    });
+
+    const joined = lines.join("\n");
+    expect(joined).toMatch(/\[ok\] {2}backfill: 7 files/);
+    expect(joined).toMatch(/50 envelopes/);
+  });
+
+  it("runBackfillConsentStep prints '[skip] backfill declined' on decline result", async () => {
+    const cfgPath = join(tmp, "config.json");
+    await seedLoggedInConfig(cfgPath);
+    const lines: string[] = [];
+
+    await runBackfillConsentStep({
+      configPath: cfgPath,
+      home: tmp,
+      env: {},
+      flag: "decline",
+      isTty: true,
+      prompt: async () => "",
+      log: (m) => lines.push(m),
+      ensure: async () => ({ ran: false, reason: "flag-declined" }) as ConsentResult,
+    });
+
+    expect(lines.some((l) => l === "[skip] backfill declined")).toBe(true);
   });
 
   it("is idempotent when rerun (no extra .bak files)", async () => {

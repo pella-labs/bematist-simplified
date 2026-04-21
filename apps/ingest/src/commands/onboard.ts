@@ -1,11 +1,22 @@
 import { copyFile, mkdir } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
+import { enumerateHistoricalFiles as enumerateClaudeFiles } from "../adapters/claude-code/backfillReader";
 import { installClaudeSessionStartHook } from "../adapters/claude-code/installHook";
+import { enumerateHistoricalFiles as enumerateCodexFiles } from "../adapters/codex/backfillReader";
 import { installCodexHook } from "../adapters/codex/installHook";
 import { installHooks as installCursorHooks } from "../adapters/cursor/installHooks";
 import { enableTrailerHook } from "../adapters/git/trailerHook";
 import { type Config, readConfig, writeConfig } from "../config";
+import { CLIENT_VERSION } from "../daemon";
+import { Uploader } from "../uploader";
+import { runBackfill } from "./backfill";
+import {
+  type ConsentDeps,
+  type ConsentFlag,
+  type ConsentResult,
+  ensureBackfillConsent,
+} from "./backfillConsent";
 import { type DetectionResult, detectTools } from "./detect";
 
 export interface OnboardInstallers {
@@ -194,4 +205,108 @@ function resolveInstallers(overrides: Partial<OnboardInstallers> = {}): OnboardI
 
 function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+export interface BackfillConsentStepOptions {
+  configPath: string;
+  home?: string;
+  env?: Record<string, string | undefined>;
+  flag: ConsentFlag;
+  isTty: boolean;
+  prompt: (question: string) => Promise<string>;
+  log: (msg: string) => void;
+  now?: () => string;
+  ensure?: (deps: ConsentDeps) => Promise<ConsentResult>;
+}
+
+export async function runBackfillConsentStep(
+  opts: BackfillConsentStepOptions,
+): Promise<ConsentResult> {
+  const home = opts.home ?? homedir();
+  const env = opts.env ?? process.env;
+  const ensure = opts.ensure ?? ensureBackfillConsent;
+
+  const deps: ConsentDeps = {
+    configPath: opts.configPath,
+    prompts: { prompt: opts.prompt },
+    detectHistorical: () => countHistorical(home, env),
+    runBackfill: async () => {
+      const current = await readConfig(opts.configPath);
+      if (!current?.ingestKey) throw new Error("not logged in");
+      const uploader = new Uploader({
+        apiUrl: current.apiUrl,
+        ingestKey: current.ingestKey,
+        clientVersion: CLIENT_VERSION,
+      });
+      return runBackfill({
+        configPath: opts.configPath,
+        home,
+        env,
+        since: "30d",
+        dryRun: false,
+        force: true,
+        adapter: null,
+        json: false,
+        uploader,
+        log: opts.log,
+        err: opts.log,
+      });
+    },
+    now: opts.now ?? (() => new Date().toISOString()),
+    out: opts.log,
+    isTty: opts.isTty,
+    flag: opts.flag,
+  };
+
+  const result = await ensure(deps);
+  emitResultLine(result, opts.log);
+  return result;
+}
+
+async function countHistorical(
+  home: string,
+  env: Record<string, string | undefined>,
+): Promise<{ claudeCode: number; codex: number; oldestMtime?: number }> {
+  const claudeRoot = join(home, ".claude", "projects");
+  const codexRoot =
+    env.CODEX_HOME && env.CODEX_HOME.length > 0
+      ? join(env.CODEX_HOME, "sessions")
+      : join(home, ".codex", "sessions");
+
+  const [claudeFiles, codexFiles] = await Promise.all([
+    enumerateClaudeFiles({ root: claudeRoot, sinceMs: 0 }),
+    enumerateCodexFiles({ root: codexRoot, sinceMs: 0 }),
+  ]);
+
+  let oldest: number | undefined;
+  for (const f of [...claudeFiles, ...codexFiles]) {
+    if (oldest === undefined || f.mtimeMs < oldest) oldest = f.mtimeMs;
+  }
+  return { claudeCode: claudeFiles.length, codex: codexFiles.length, oldestMtime: oldest };
+}
+
+function emitResultLine(result: ConsentResult, log: (msg: string) => void): void {
+  if (result.ran) {
+    const cc = result.result.summary.claude_code;
+    const cx = result.result.summary.codex;
+    const files = (cc?.files ?? 0) + (cx?.files ?? 0);
+    const envs = (cc?.envelopes ?? 0) + (cx?.envelopes ?? 0);
+    const bytes = (cc?.bytes ?? 0) + (cx?.bytes ?? 0);
+    log(`[ok]  backfill: ${files} files · ${fmtN(envs)} envelopes · ${humanBytes(bytes)} uploaded`);
+    return;
+  }
+  if (result.reason === "declined" || result.reason === "flag-declined") {
+    log("[skip] backfill declined");
+  }
+}
+
+function fmtN(n: number): string {
+  return n.toLocaleString("en-US");
+}
+
+function humanBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
