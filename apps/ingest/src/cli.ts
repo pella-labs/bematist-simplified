@@ -17,6 +17,7 @@ import {
   statusTrailerHook,
 } from "./adapters/git/trailerHook";
 import { clearIngestKey, runLoginFlow, validateIngestKey } from "./auth";
+import { type AdapterName, runBackfill } from "./commands/backfill";
 import { runCaptureGitShaCli } from "./commands/captureGitSha";
 import { runCursorHook } from "./commands/cursorHook";
 import { detectTools } from "./commands/detect";
@@ -32,6 +33,7 @@ import {
 } from "./commands/service";
 import { type Config, defaultConfigPath, freshConfig, readConfig, writeConfig } from "./config";
 import { CLIENT_VERSION, startDaemon } from "./daemon";
+import { Uploader } from "./uploader";
 
 export interface CliIO {
   argv: string[];
@@ -76,6 +78,8 @@ export async function run(io: CliIO): Promise<number> {
       return await cmdRestart(args, log, err);
     case "doctor":
       return await cmdDoctor(io, path, args, log);
+    case "backfill":
+      return await cmdBackfill(io, path, args, log, err);
     case "uninstall":
       return await cmdUninstall(path, log);
     case "capture-git-sha":
@@ -104,6 +108,9 @@ function usage(): string {
     "  bm-pilot restart          Stop then start the service (skips re-onboarding)",
     "  bm-pilot status           Print JSON status of config, service, hooks, detected tools",
     "  bm-pilot doctor [--json]  Run diagnostics; exit non-zero on any critical failure",
+    "  bm-pilot backfill [flags] Upload historical Claude Code + Codex sessions",
+    "                            flags: [--since 30d|7d|72h|all] [--dry-run]",
+    "                                   [--force] [--adapter claude-code|codex] [--json]",
     "  bm-pilot logout           Clear the stored ingest key",
     "  bm-pilot run              Run the daemon in the foreground (used by the service unit)",
     "  bm-pilot uninstall        Print the removal checklist",
@@ -376,6 +383,98 @@ async function cmdDoctor(
   });
   log(res.output);
   return res.exitCode;
+}
+
+async function cmdBackfill(
+  io: CliIO,
+  path: string,
+  args: string[],
+  log: (m: string) => void,
+  err: (m: string) => void,
+): Promise<number> {
+  const flags = parseBackfillFlags(args);
+  if (!flags.ok) {
+    err(flags.message);
+    return 2;
+  }
+  const current = await readConfig(path);
+  if (!current) {
+    err(`no config at ${path} — run \`bm-pilot login <token>\` first`);
+    return 1;
+  }
+  if (!current.ingestKey) {
+    err("not logged in — run `bm-pilot login <token>` first");
+    return 1;
+  }
+  const uploader = new Uploader({
+    apiUrl: current.apiUrl,
+    ingestKey: current.ingestKey,
+    clientVersion: CLIENT_VERSION,
+  });
+  const res = await runBackfill({
+    configPath: path,
+    home: homedir(),
+    env: io.env,
+    since: flags.since,
+    dryRun: flags.dryRun,
+    force: flags.force,
+    adapter: flags.adapter,
+    json: flags.json,
+    uploader,
+    log,
+    err,
+  });
+  return res.exitCode;
+}
+
+interface BackfillFlagsOk {
+  ok: true;
+  since: string | undefined;
+  dryRun: boolean;
+  force: boolean;
+  adapter: AdapterName | null;
+  json: boolean;
+}
+interface BackfillFlagsErr {
+  ok: false;
+  message: string;
+}
+type BackfillFlags = BackfillFlagsOk | BackfillFlagsErr;
+
+function parseBackfillFlags(args: string[]): BackfillFlags {
+  let since: string | undefined;
+  let dryRun = false;
+  let force = false;
+  let json = false;
+  let adapter: AdapterName | null = null;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === "--dry-run") dryRun = true;
+    else if (a === "--force") force = true;
+    else if (a === "--json") json = true;
+    else if (a === "--since") {
+      const v = args[++i];
+      if (v === undefined) return { ok: false, message: "--since requires a value" };
+      since = v;
+    } else if (a?.startsWith("--since=")) {
+      since = a.slice("--since=".length);
+    } else if (a === "--adapter") {
+      const v = args[++i];
+      if (v !== "claude-code" && v !== "codex") {
+        return { ok: false, message: "--adapter must be `claude-code` or `codex`" };
+      }
+      adapter = v;
+    } else if (a?.startsWith("--adapter=")) {
+      const v = a.slice("--adapter=".length);
+      if (v !== "claude-code" && v !== "codex") {
+        return { ok: false, message: "--adapter must be `claude-code` or `codex`" };
+      }
+      adapter = v;
+    } else {
+      return { ok: false, message: `unknown backfill flag: ${a}` };
+    }
+  }
+  return { ok: true, since, dryRun, force, adapter, json };
 }
 
 async function cmdUninstall(path: string, log: (m: string) => void): Promise<number> {
