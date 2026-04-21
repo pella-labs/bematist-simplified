@@ -760,6 +760,69 @@ After `start`, the daemon runs in the background, auto-detects installed AI-codi
 
 ---
 
+### WS-22: Auto-prompt backfill during `bm-pilot start`
+
+**Purpose:** Make historical backfill a one-prompt decision inside the onboarding flow instead of a command the developer has to remember. On first `bm-pilot start`, if historical Claude/Codex files exist and no prior decision is persisted, show a one-line Y/N prompt: "found N historical sessions (C claude-code + X codex, since <mtime>). include them? [y/N]". On `y`, run WS-21's backfill in-process and report the result as a new onboarding step. Persist the decision to `~/.bm-pilot/config.json` so subsequent `start` runs skip the prompt. Mirrors the WS-10 Cursor-consent pattern for shape.
+
+**Depends on:** WS-20 (onboard orchestration), WS-21 (backfill core must expose a callable function, not CLI-only).
+
+**Files owned:**
+- `apps/ingest/src/config.ts` — add optional `onboarding: { backfillPromptedAt?: string; backfillAccepted?: boolean }` to `ConfigSchema`. Outer schema stays strict; inner object is strict too (mirrors cursor). Both fields are optional; absence = "never asked."
+- `apps/ingest/src/commands/backfillConsent.ts` (new) — `ensureBackfillConsent({ prompts, detectHistorical, runBackfill, now, configPath, out })`. Reads `config.onboarding.backfillPromptedAt`; if set, short-circuits with persisted `backfillAccepted` (no prompt, no run). If absent, calls `detectHistorical()` to count historical files per adapter. If zero, persists `{ backfillPromptedAt: now(), backfillAccepted: false }` silently and returns `{ ran: false, reason: "no-history" }`. Otherwise prompts Y/N via `prompts`; on Y, calls `runBackfill()` and persists `backfillAccepted: true`; on N, persists `backfillAccepted: false` and returns `{ ran: false, reason: "declined" }`. All persistence via atomic `writeConfig`.
+- `apps/ingest/src/commands/backfillConsent.test.ts` (new) — covers: never-asked + history-found + Y → runs; never-asked + history-found + N → doesn't run; never-asked + no-history → silent persist; already-asked → skip entirely regardless of history presence; runBackfill throws → error propagates but config is still marked asked (prevents re-prompt loop — `backfillPromptedAt` set with `backfillAccepted: true` even on failure; user can retry via explicit `bm-pilot backfill`).
+- `apps/ingest/src/commands/onboard.ts` — after the existing onboarding steps (detect, install hooks, install service), call `ensureBackfillConsent`. This is the ONLY place outside backfill itself that invokes the backfill core.
+- `apps/ingest/src/commands/backfill.ts` — if WS-21 did not already expose a non-CLI callable `runBackfill(opts): Promise<BackfillResult>`, restructure so the CLI path is a thin wrapper around a pure core function. Do NOT change CLI behavior or the `BackfillResult` shape if already defined.
+
+**Do NOT touch:**
+- WS-21's adapter backfill readers (`backfillReader.ts` in either adapter). Use as-is.
+- Live tailers, parsers, uploader, batcher.
+- DB schema, server routes, dashboard.
+- `plan.md`, orchestrator files.
+
+**Deliverables:**
+
+1. **CLI flow change:** `bm-pilot start` on a fresh install with ≥1 historical session file prints (after all existing steps):
+   ```
+   [ok]  onboarding complete
+   
+   found 23 historical sessions (19 claude-code + 4 codex, oldest 2026-03-12).
+   include them? [y/N]: 
+   ```
+   On `y`, runs backfill inline, emits the same per-adapter summary WS-21 produces:
+   ```
+   [ok]  backfill: 23 files · 1,847 envelopes · 720 KB uploaded
+   ```
+   On `n` or enter (default), prints `[skip] backfill declined` and persists the decision.
+
+2. **Persistence:** after the prompt (or silent path), `~/.bm-pilot/config.json` gains:
+   ```json
+   "onboarding": { "backfillPromptedAt": "2026-04-21T22:40:00.000Z", "backfillAccepted": true }
+   ```
+   Subsequent `bm-pilot start` runs see `backfillPromptedAt` set and skip the prompt entirely, regardless of whether new historical files have appeared since. Developers who want to re-run backfill use the explicit `bm-pilot backfill` subcommand.
+
+3. **`--backfill` / `--no-backfill` flags on `start`:** optional override for CI / non-interactive contexts. `--backfill` accepts without prompting; `--no-backfill` declines without prompting; both still persist the decision.
+
+4. **Non-interactive default:** if stdin is not a TTY and no flag is passed, persist `backfillAccepted: false` and print `[skip] backfill (non-interactive)`. Same behavior as Cursor consent in non-TTY environments.
+
+**Tests:**
+- `backfillConsent.test.ts` — state-table covered above.
+- Extension to `onboard.test.ts` — assert `ensureBackfillConsent` is called after service install, not before.
+- No changes to existing WS-20 / WS-21 tests.
+- Baseline at start of WS-22: WS-21's final count. Expected after WS-22: +8–12 tests.
+
+**Acceptance:**
+- Fresh install on a machine with Claude/Codex history: running `bm-pilot start` once prompts Y/N; on Y, historical data appears in the dashboard alongside live sessions; on N, nothing extra is uploaded. In both cases, a second `bm-pilot start` does NOT re-prompt.
+- Fresh install on a machine with no history: `bm-pilot start` completes without a prompt; config persists `backfillPromptedAt` + `backfillAccepted: false`.
+- `bm-pilot start --no-backfill` on a machine with history: no prompt, no upload, persist declined.
+- `bm-pilot start --backfill` on a machine with history: no prompt, runs backfill, persist accepted.
+
+**Non-goals:**
+- No re-prompting on subsequent runs when new history appears — use explicit `bm-pilot backfill` to force re-import.
+- No per-adapter consent split — one decision covers both claude-code and codex.
+- No UI on the dashboard to request backfill from the server side.
+
+---
+
 # Milestones
 
 | Milestone | Criteria | Who signs off |
@@ -801,7 +864,8 @@ Each workstream gets a status line kept up to date by the orchestrator:
 - WS-13: merged (2026-04-20, commit `ef03bf9`). All three attribution signals + git trailer hook. Worker schedules `attribute-cwd-time` every 5 min (env override `WORKER_CWD_TIME_INTERVAL_MS`); matches session.cwd path-segment against `repos.name` short-name (derived from `remote.origin.url`), pulls commits in `[started_at − 10m, ended_at + 10m]`, inserts `signal='cwd_time'` `confidence=0.6`. `attribute-trailer` parses `Bematist-Session: <uuid>` trailers — server-side parser walks back from last non-empty line collecting contiguous trailer block (matches git's semantics; ignores body-level trailer-shaped lines), strict UUIDv1-5 regex, dedups within message; `signal='trailer'` `confidence=1.0`. `attribute-scan` skips commits with valid trailer (trailer path owns those), falls back to `developers.email = commit.authorEmail` within `committed_at ± 10m`; `signal='webhook_scan'` `confidence=0.4`. Webhook integration: `apps/api/src/github/webhook.ts` calls `runPushAttribution` (in `apps/api/src/github/handlers/pushAttribution.ts`) inline after `handlePush` under same tenant-scoped sql so all writes respect RLS. New cross-package dep: `apps/api` → `@bematist/worker` (job code reused by webhook receiver). Trailer hook: `bematist git enable|disable|status` in `apps/ingest/src/adapters/git/trailerHook.ts` — sets global `core.hooksPath ~/.bematist/git-hooks`, backs up prior value into config under `gitHooksPathBackup`, generates `prepare-commit-msg` shell that runs `git interpret-trailers --if-exists addIfDifferent --in-place "$1"` reading session id from `~/.bematist/current-session`. **No commit amending. No history rewriting.** Daemon (`apps/ingest/src/daemon.ts`) writes `~/.bematist/current-session` on `session_start` events and clears on `session_end`/stop; tracks active sessions via `Set` so multiple concurrent sessions are handled (last-stamped persists; cleared only when zero remain). 45 new tests across 7 files. Pre-existing flake: `claude-code tailer.test.ts` "emits session_end on file rotation and a new session_start" reproduces on HEAD before WS-13 changes; passes on most reruns. Not a blocker.
 - WS-20: merged (2026-04-21, commit `0c932b5`). Single-command onboarding. CLI adds `start`, `stop [--uninstall]`, `restart`, `doctor [--json]`; `login` takes positional token; `status` extended with `daemonRunning`, `servicePid`, `serviceUptimeSec`, `serviceInstalled`, `hookStates`, `detectedTools`. `apps/ingest/src/commands/onboard.ts` orchestrates: `detect.ts` probes `~/.claude/` + `~/.codex/` (honors `$CODEX_HOME`) + Cursor (macOS/Linux/Windows + `~/.cursor` fallback); invokes existing `installClaudeSessionStartHook` / `installCodexHook` / cursor `installHooks` / `enableTrailerHook` without redesigning them; migrates legacy `adapters.mock.enabled=true` to `{}` writing `~/.bm-pilot/config.json.bak-pre-ws20`; per-tool failures logged + continued. `service.ts` is a platform-dispatch abstraction with injectable `platform` + `exec` seam — `launchd.ts` renders from `infra/service-install/launchd.plist.tmpl` + `launchctl bootstrap gui/$UID ... / kickstart / bootout`; `systemd.ts` renders from `systemd.service.tmpl` + `systemctl --user enable --now` / `disable --now`; `windows.ts` uses `schtasks /Create /SC ONLOGON /TN Bematist /RL LIMITED` (wraps PowerShell logic). Service-install failure path spawns a detached daemon, writes PID to `~/.bm-pilot/daemon.pid`, `bm-pilot stop` SIGTERMs + waits 5s + SIGKILLs. `doctor.ts` runs config / token-format / `/healthz` reachability (critical) + tool detection / hook states / daemon + service (non-critical) with `--json` output. `freshConfig()` now returns `adapters: {}` (mock becomes opt-in); `install.sh` trailing hint updated to `login <token>` + `start`. Marketing `/install` page + dashboard `EmptyState` updated to 3-command copy. `daemon.ts` gains `trimDaemonLogIfLarge(path, 10MB)` (halves file when over; no background rotation). Marker convention is ASCII `[ok]` / `[skip]` / `[fail]` — no emoji. Manual OS acceptance (launchd/systemd/schtasks survive logout/reboot) is WS-15's job; CI covers dispatch logic only — documented at `apps/ingest/docs/onboard-manual-tests.md`. +45 tests; full suite 460/460.
 - WS-15: todo (blocked on WS-14 → Railway provisioning; WS-20 unblocks developer-side onboarding)
-- WS-21: todo — **NEXT**. Historical session backfill (`bm-pilot backfill`). Reads existing `~/.claude/projects/**/*.jsonl` + `~/.codex/sessions/**/rollout-*.jsonl` from byte 0, emits through the live parse/upload path, bumps offsets to EOF so the tailer doesn't re-emit. Cursor skipped (hook-driven). Full spec §WS-21 above.
+- WS-21: in-progress — worktree `.claude/worktrees/agent-a18f9a6c`, branch `feat/ws-21-backfill`. Historical session backfill (`bm-pilot backfill`). Reads existing `~/.claude/projects/**/*.jsonl` + `~/.codex/sessions/**/rollout-*.jsonl` from byte 0, emits through the live parse/upload path, bumps offsets to EOF so the tailer doesn't re-emit. Cursor skipped (hook-driven). Full spec §WS-21 above.
+- WS-22: todo (blocked on WS-21). Auto-prompt backfill from inside `bm-pilot start` — Y/N once on fresh install with history, persist decision to `config.onboarding.backfillPromptedAt`. Subsequent runs skip the prompt. Full spec §WS-22 above.
 - WS-19: merged (2026-04-21, commit `e8d9eff`). Fixes 3-way mismatch between admin mint-key, CLI regex, and API parser that made every minted ingest key unusable. Admin `mintIngestKeyForDeveloper` in `apps/web/app/admin/keys/actions.ts` now emits `bm_<fullOrgUUID>_<suffix>_<secret>` (4 underscore-separated parts matching `apps/api/src/auth/verifyIngestKey.ts#parseBearer`), stores DB id as `bm_<fullOrgUUID>_<suffix>` (no truncation of orgId), and hashes ONLY the secret (`sha256(secret)` — not `sha256(keyId.secret)`). Secret alphabet switched from base64url to 64-hex chars so the parser's `_` split is unambiguous. CLI `KEY_PATTERN` in `apps/ingest/src/auth.ts` tightened to `^bm_<uuid>_[A-Za-z0-9]{8,64}_[A-Za-z0-9]{16,}$` — exact match with API. `apps/api/src/auth/verifyIngestKey.ts` promotes `parseBearer` + `sha256Hex` from `__test__` namespace to top-level exports; web consumes via `apps/web/lib/keyHash.ts` (local copy to avoid web→api bundle pulling `Bun.serve`). Install.sh bug: `DEFAULT_API_URL` was `http://localhost:8000` hardcoded at compile. Now `apps/ingest/scripts/install.sh` seeds `~/.bm-pilot/config.json` post-install with `apiUrl` substituted from the web's `/install.sh` route, which replaces the `{{API_URL}}` template literal with `INGEST_API_PUBLIC_URL` (preferred) or `INGEST_API_URL` (fallback) env var. Seed includes full `ConfigSchema.strict()` shape: `apiUrl`, `ingestKey:null`, `deviceId:<uuid>` (via `uuidgen` or `/proc/sys/kernel/random/uuid`), `adapters:{mock:{enabled:true}}`, `installedAt:<ISO>`. If neither env is set, literal `{{API_URL}}` passes through and install.sh falls back to `BM_PILOT_API_URL` env var or skips seeding (CLI will then default to localhost for dev). +15 tests; full suite 415/415. Orchestrator set `INGEST_API_PUBLIC_URL=https://api-production-2834.up.railway.app` on web service before merge.
 - WS-18: merged (2026-04-21, commit `db09c68`). Auto-backfill GitHub repos on admin install callback. Previously `/admin/github/callback` only inserted the `github_installations` row; repo population depended entirely on the `installation.created` webhook, leading to "0 repos" until a later push. Now the callback also mints an installation token via JWT (RS256) + calls `GET /installation/repositories` (paginated) + upserts into `repos`. Best-effort: missing creds → short-circuit with `{ ok: false, reason: "missing-creds" }`; any network/DB error in mint/list/upsert → logged, not surfaced, redirect still returns `status=ok`. Architecture: `apps/web/lib/githubRepos.ts` copies the ~30-line JWT + list-repos + upsert helper (avoids a `apps/web → @bematist/api` dep that would drag `Bun.serve` + the full api router into Next.js 16's bundle graph). Route factored as `handleCallback(req, deps)` with a `CallbackDeps` DI seam mirroring WS-5's `WebhookRouteDeps`; `GET` is a 1-line wrapper building `productionDeps()` (lazy imports `@/lib/session` at request time so tests stay Postgres-free). +10 tests; full suite 400/400.
 - WS-17: merged (2026-04-21, commit `f103dea`). Rename CLI binary from `bematist` to `bm-pilot` (temp name — final TBD by team). Scope: binary filenames in `apps/ingest/build.ts` (4 targets), `apps/ingest/scripts/install.sh`, `.github/workflows/release.yml`; state dir `~/.bematist/` → `~/.bm-pilot/`; all user-facing CLI help text; hook install commands (`bm-pilot capture-git-sha`, `bm-pilot cursor-hook`); env vars `BEMATIST_BINARY_BASE_URL` → `BM_PILOT_BINARY_BASE_URL`, `BEMATIST_INSTALL_DIR` → `BM_PILOT_INSTALL_DIR`, `BEMATIST_TOKEN` → `BM_PILOT_TOKEN`; dashboard install-instruction copy. PRESERVED: product name "Bematist" in brand, `@bematist/*` workspace names, `app_bematist` Postgres role, DB schema, `Bematist-Session` git trailer, `bematist_session_id` cursor payload reader, server-side `BEMATIST_MODEL_CACHE_DIR` + `BEMATIST_SERVICE`, logger prefixes in api/worker. 390 tests unchanged. 40 files, 125+/125-.
