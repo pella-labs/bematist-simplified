@@ -1,6 +1,6 @@
-# Register a per-user scheduled task that runs `bematist run` at logon.
+# Register a per-user scheduled task that runs `bm-pilot run` at logon.
 # Usage:
-#   powershell -ExecutionPolicy Bypass -File windows-service-install.ps1 -BinaryPath "C:\Users\you\.local\bin\bematist.exe"
+#   powershell -ExecutionPolicy Bypass -File windows-service-install.ps1 -BinaryPath "C:\Users\you\.local\bin\bm-pilot.exe"
 
 param(
     [Parameter(Mandatory = $true)]
