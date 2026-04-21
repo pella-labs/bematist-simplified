@@ -2,8 +2,10 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const dynamic = "force-static";
-export const revalidate = 60;
+// Must evaluate at request time: process.env.INGEST_API_PUBLIC_URL is only
+// populated by Railway at runtime, not during `next build`. force-static would
+// bake the build-time dummy (http://localhost:8000) into the response.
+export const dynamic = "force-dynamic";
 
 // In the container build, the Dockerfile copies `apps/ingest/scripts/install.sh`
 // to `apps/web/install-script/install.sh` so the first candidate resolves.
