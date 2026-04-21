@@ -683,6 +683,83 @@ After `start`, the daemon runs in the background, auto-detects installed AI-codi
 
 ---
 
+### WS-21: Historical session backfill
+
+**Purpose:** Capture Claude Code and Codex CLI sessions that happened *before* `bm-pilot start`. The tailers in WS-8/WS-9 start from EOF on first discovery, so a fresh install today sees no history — a user with months of local JSONL files has nothing in the dashboard until they start a new session. This workstream adds a `bm-pilot backfill` subcommand that reads existing session files from byte 0, emits envelopes through the same parse/upload path as the live tailers, and bumps offsets to EOF so the live tailer picks up cleanly on next start. Cursor is skipped (hook-driven, no persistent log to backfill from).
+
+**Depends on:** WS-6 (CLI harness), WS-8 (claude-code parser), WS-9 (codex parser + tokenDiff + offsets-codex lock), WS-17 (`~/.bm-pilot/` state dir), WS-20 (daemon PID file + `serviceStatus()` so backfill can detect a running daemon).
+
+**Files owned:**
+- `apps/ingest/src/commands/backfill.ts` (new) — orchestration: parse flags, check daemon state, enumerate files per adapter, call adapter-specific backfill readers, drain uploader, update offsets, print summary.
+- `apps/ingest/src/commands/backfill.test.ts` (new) — end-to-end with fixture JSONL trees in a temp home; mock uploader; verify envelope count, dedup safety, offset bumping, dry-run flag.
+- `apps/ingest/src/adapters/claude-code/backfillReader.ts` (new) — `enumerateHistoricalFiles({ root, sinceMs }) → FileInfo[]` + `readFileToEnvelopes(path, ctx) → AsyncIterable<EventEnvelope>`. Reuses `parseLineToEnvelopes` + `makeSessionStartEnvelope` + `makeSessionEndEnvelope` from `parseSessionFile.ts`. No change to `parseSessionFile.ts` itself.
+- `apps/ingest/src/adapters/claude-code/backfillReader.test.ts` (new).
+- `apps/ingest/src/adapters/codex/backfillReader.ts` (new) — same shape. Reuses `parseRolloutLine` and carries the per-session `tokenDiff` state for the duration of one file.
+- `apps/ingest/src/adapters/codex/backfillReader.test.ts` (new).
+- `apps/ingest/src/cli.ts` — add `backfill` subcommand, extend help text. No other changes.
+
+**Do NOT touch:**
+- Live tailers (`tailer.ts` in either adapter). Backfill is a parallel reader that acquires the existing codex offsets lock (and relies on atomic tmp+rename for claude-code) but does NOT modify tailer code paths.
+- `parseSessionFile.ts` / `parseRollout.ts` / `tokenDiff.ts` — reuse as-is.
+- Uploader / Batcher / auth / normalize — reuse as-is.
+- Daemon / service commands / onboard.ts — WS-20 territory, stable.
+- DB schema, server routes, dashboard — out of scope.
+- `plan.md` — orchestrator updates status on merge.
+
+**Deliverables:**
+
+1. **CLI surface:** `bm-pilot backfill [--since <duration>] [--dry-run] [--force] [--adapter claude-code|codex]`
+   - `--since` default `30d`. Accepts `7d`, `72h`, `all`. Filter is by file mtime (a session file last modified before the cutoff is skipped; otherwise read from byte 0).
+   - `--dry-run` scans and reports what *would* be uploaded (file count, approximate event count per adapter) without emitting.
+   - `--force` proceeds even when the daemon / service appears to be running (default behavior refuses with a clear message: "stop the service first or pass `--force`"). Server-side dedup on `(org_id, session_id, event_seq, client_event_id)` protects against races.
+   - `--adapter` restricts to one adapter. Omit to run both claude-code and codex.
+
+2. **Per-adapter backfill readers** expose:
+   - `enumerateHistoricalFiles({ root, sinceMs })` returning `{ path, mtimeMs, sizeBytes }[]`.
+   - `readFileToEnvelopes(path, ctx)` returning an async iterable of `EventEnvelope` — streaming, not all-at-once, so large session files don't blow memory.
+   - Emits `session_start` + all line-derived envelopes + `session_end` synthetic in that order, per file, using the existing helpers.
+
+3. **Offset handling after successful upload:**
+   - For each file fully processed without upload failure, set the offsets entry for that absolute path to its current `statSync(path).size` in the adapter's offsets file. Uses the existing on-disk shape (claude-code: `{version:1, files:{...}}`; codex: `{codex:{...}}` under the codex lock).
+   - On partial failure (uploader exhausted retries on some batch), leave that file's offset untouched and exit nonzero with a clear error; no partial bumping.
+
+4. **Summary output:**
+   - Human default:
+     ```
+     backfill complete
+       claude-code: 42 files  ·  3,218 envelopes  ·  1.2 MB uploaded
+       codex:       11 files  ·    417 envelopes  ·  180 KB uploaded
+       cursor:      skipped (no historical record)
+     offsets advanced to EOF for all processed files.
+     ```
+   - `--json` flag optional; if included, emit a machine-readable summary instead.
+
+5. **Safety:**
+   - Refuses to run without a valid ingest key in config (same check as `bm-pilot start`).
+   - Refuses when daemon PID file or service reports running, unless `--force`.
+   - Acquires the codex offsets lock (`~/.bm-pilot/offsets-codex.lock`) for the duration of codex backfill; releases on exit including error path.
+   - Atomic tmp+rename on offsets files (already standard).
+
+**Tests:**
+- `backfillReader.test.ts` (both adapters): fixture directory trees with 2–3 session files, verify file enumeration respects `sinceMs`, verify envelope iteration matches expected count, verify tokenDiff state is reset between files for codex.
+- `backfill.test.ts`: fixture home, mock uploader, run backfill end-to-end, assert envelope emission order (session_start before line envelopes before session_end), assert offsets advanced, assert dry-run emits nothing, assert `--force` bypasses the daemon-running check, assert missing ingest key → refuse.
+- Baseline at start of WS-21: 460 pass / 0 fail. Expected after: ~485–500 pass / 0 fail.
+
+**Acceptance:**
+- On a machine with existing `~/.claude/projects/**/*.jsonl` and `~/.codex/sessions/**/rollout-*.jsonl`, running `bm-pilot backfill` after `bm-pilot login` (and with the service stopped) uploads historical events to the configured API. Dashboard shows sessions with start timestamps predating the install.
+- Running `bm-pilot backfill` twice in a row is idempotent (server-side dedup; second run is a no-op in terms of inserted rows, though it still iterates files).
+- Running `bm-pilot start` after a backfill does not re-emit backfilled events (offsets at EOF).
+
+**Non-goals (explicit):**
+- No git-sha reconstruction for historical events. `git_sha` stays null for backfilled events (the capture-git-sha queue is populated only by live hooks).
+- No Cursor backfill (hook-driven; no persistent event log on disk).
+- No dashboard UI changes. Historical sessions show up in the existing sessions list.
+- No cross-machine backfill (a user can only backfill files on the machine where they run the command).
+- No interactive prompts. `backfill` is non-interactive like `start`.
+- No per-file resumption after a mid-run failure — if a batch upload fails and retries are exhausted, the user re-runs `backfill`; server dedup handles overlap.
+
+---
+
 # Milestones
 
 | Milestone | Criteria | Who signs off |
@@ -724,6 +801,7 @@ Each workstream gets a status line kept up to date by the orchestrator:
 - WS-13: merged (2026-04-20, commit `ef03bf9`). All three attribution signals + git trailer hook. Worker schedules `attribute-cwd-time` every 5 min (env override `WORKER_CWD_TIME_INTERVAL_MS`); matches session.cwd path-segment against `repos.name` short-name (derived from `remote.origin.url`), pulls commits in `[started_at − 10m, ended_at + 10m]`, inserts `signal='cwd_time'` `confidence=0.6`. `attribute-trailer` parses `Bematist-Session: <uuid>` trailers — server-side parser walks back from last non-empty line collecting contiguous trailer block (matches git's semantics; ignores body-level trailer-shaped lines), strict UUIDv1-5 regex, dedups within message; `signal='trailer'` `confidence=1.0`. `attribute-scan` skips commits with valid trailer (trailer path owns those), falls back to `developers.email = commit.authorEmail` within `committed_at ± 10m`; `signal='webhook_scan'` `confidence=0.4`. Webhook integration: `apps/api/src/github/webhook.ts` calls `runPushAttribution` (in `apps/api/src/github/handlers/pushAttribution.ts`) inline after `handlePush` under same tenant-scoped sql so all writes respect RLS. New cross-package dep: `apps/api` → `@bematist/worker` (job code reused by webhook receiver). Trailer hook: `bematist git enable|disable|status` in `apps/ingest/src/adapters/git/trailerHook.ts` — sets global `core.hooksPath ~/.bematist/git-hooks`, backs up prior value into config under `gitHooksPathBackup`, generates `prepare-commit-msg` shell that runs `git interpret-trailers --if-exists addIfDifferent --in-place "$1"` reading session id from `~/.bematist/current-session`. **No commit amending. No history rewriting.** Daemon (`apps/ingest/src/daemon.ts`) writes `~/.bematist/current-session` on `session_start` events and clears on `session_end`/stop; tracks active sessions via `Set` so multiple concurrent sessions are handled (last-stamped persists; cleared only when zero remain). 45 new tests across 7 files. Pre-existing flake: `claude-code tailer.test.ts` "emits session_end on file rotation and a new session_start" reproduces on HEAD before WS-13 changes; passes on most reruns. Not a blocker.
 - WS-20: merged (2026-04-21, commit `0c932b5`). Single-command onboarding. CLI adds `start`, `stop [--uninstall]`, `restart`, `doctor [--json]`; `login` takes positional token; `status` extended with `daemonRunning`, `servicePid`, `serviceUptimeSec`, `serviceInstalled`, `hookStates`, `detectedTools`. `apps/ingest/src/commands/onboard.ts` orchestrates: `detect.ts` probes `~/.claude/` + `~/.codex/` (honors `$CODEX_HOME`) + Cursor (macOS/Linux/Windows + `~/.cursor` fallback); invokes existing `installClaudeSessionStartHook` / `installCodexHook` / cursor `installHooks` / `enableTrailerHook` without redesigning them; migrates legacy `adapters.mock.enabled=true` to `{}` writing `~/.bm-pilot/config.json.bak-pre-ws20`; per-tool failures logged + continued. `service.ts` is a platform-dispatch abstraction with injectable `platform` + `exec` seam — `launchd.ts` renders from `infra/service-install/launchd.plist.tmpl` + `launchctl bootstrap gui/$UID ... / kickstart / bootout`; `systemd.ts` renders from `systemd.service.tmpl` + `systemctl --user enable --now` / `disable --now`; `windows.ts` uses `schtasks /Create /SC ONLOGON /TN Bematist /RL LIMITED` (wraps PowerShell logic). Service-install failure path spawns a detached daemon, writes PID to `~/.bm-pilot/daemon.pid`, `bm-pilot stop` SIGTERMs + waits 5s + SIGKILLs. `doctor.ts` runs config / token-format / `/healthz` reachability (critical) + tool detection / hook states / daemon + service (non-critical) with `--json` output. `freshConfig()` now returns `adapters: {}` (mock becomes opt-in); `install.sh` trailing hint updated to `login <token>` + `start`. Marketing `/install` page + dashboard `EmptyState` updated to 3-command copy. `daemon.ts` gains `trimDaemonLogIfLarge(path, 10MB)` (halves file when over; no background rotation). Marker convention is ASCII `[ok]` / `[skip]` / `[fail]` — no emoji. Manual OS acceptance (launchd/systemd/schtasks survive logout/reboot) is WS-15's job; CI covers dispatch logic only — documented at `apps/ingest/docs/onboard-manual-tests.md`. +45 tests; full suite 460/460.
 - WS-15: todo (blocked on WS-14 → Railway provisioning; WS-20 unblocks developer-side onboarding)
+- WS-21: todo — **NEXT**. Historical session backfill (`bm-pilot backfill`). Reads existing `~/.claude/projects/**/*.jsonl` + `~/.codex/sessions/**/rollout-*.jsonl` from byte 0, emits through the live parse/upload path, bumps offsets to EOF so the tailer doesn't re-emit. Cursor skipped (hook-driven). Full spec §WS-21 above.
 - WS-19: merged (2026-04-21, commit `e8d9eff`). Fixes 3-way mismatch between admin mint-key, CLI regex, and API parser that made every minted ingest key unusable. Admin `mintIngestKeyForDeveloper` in `apps/web/app/admin/keys/actions.ts` now emits `bm_<fullOrgUUID>_<suffix>_<secret>` (4 underscore-separated parts matching `apps/api/src/auth/verifyIngestKey.ts#parseBearer`), stores DB id as `bm_<fullOrgUUID>_<suffix>` (no truncation of orgId), and hashes ONLY the secret (`sha256(secret)` — not `sha256(keyId.secret)`). Secret alphabet switched from base64url to 64-hex chars so the parser's `_` split is unambiguous. CLI `KEY_PATTERN` in `apps/ingest/src/auth.ts` tightened to `^bm_<uuid>_[A-Za-z0-9]{8,64}_[A-Za-z0-9]{16,}$` — exact match with API. `apps/api/src/auth/verifyIngestKey.ts` promotes `parseBearer` + `sha256Hex` from `__test__` namespace to top-level exports; web consumes via `apps/web/lib/keyHash.ts` (local copy to avoid web→api bundle pulling `Bun.serve`). Install.sh bug: `DEFAULT_API_URL` was `http://localhost:8000` hardcoded at compile. Now `apps/ingest/scripts/install.sh` seeds `~/.bm-pilot/config.json` post-install with `apiUrl` substituted from the web's `/install.sh` route, which replaces the `{{API_URL}}` template literal with `INGEST_API_PUBLIC_URL` (preferred) or `INGEST_API_URL` (fallback) env var. Seed includes full `ConfigSchema.strict()` shape: `apiUrl`, `ingestKey:null`, `deviceId:<uuid>` (via `uuidgen` or `/proc/sys/kernel/random/uuid`), `adapters:{mock:{enabled:true}}`, `installedAt:<ISO>`. If neither env is set, literal `{{API_URL}}` passes through and install.sh falls back to `BM_PILOT_API_URL` env var or skips seeding (CLI will then default to localhost for dev). +15 tests; full suite 415/415. Orchestrator set `INGEST_API_PUBLIC_URL=https://api-production-2834.up.railway.app` on web service before merge.
 - WS-18: merged (2026-04-21, commit `db09c68`). Auto-backfill GitHub repos on admin install callback. Previously `/admin/github/callback` only inserted the `github_installations` row; repo population depended entirely on the `installation.created` webhook, leading to "0 repos" until a later push. Now the callback also mints an installation token via JWT (RS256) + calls `GET /installation/repositories` (paginated) + upserts into `repos`. Best-effort: missing creds → short-circuit with `{ ok: false, reason: "missing-creds" }`; any network/DB error in mint/list/upsert → logged, not surfaced, redirect still returns `status=ok`. Architecture: `apps/web/lib/githubRepos.ts` copies the ~30-line JWT + list-repos + upsert helper (avoids a `apps/web → @bematist/api` dep that would drag `Bun.serve` + the full api router into Next.js 16's bundle graph). Route factored as `handleCallback(req, deps)` with a `CallbackDeps` DI seam mirroring WS-5's `WebhookRouteDeps`; `GET` is a 1-line wrapper building `productionDeps()` (lazy imports `@/lib/session` at request time so tests stay Postgres-free). +10 tests; full suite 400/400.
 - WS-17: merged (2026-04-21, commit `f103dea`). Rename CLI binary from `bematist` to `bm-pilot` (temp name — final TBD by team). Scope: binary filenames in `apps/ingest/build.ts` (4 targets), `apps/ingest/scripts/install.sh`, `.github/workflows/release.yml`; state dir `~/.bematist/` → `~/.bm-pilot/`; all user-facing CLI help text; hook install commands (`bm-pilot capture-git-sha`, `bm-pilot cursor-hook`); env vars `BEMATIST_BINARY_BASE_URL` → `BM_PILOT_BINARY_BASE_URL`, `BEMATIST_INSTALL_DIR` → `BM_PILOT_INSTALL_DIR`, `BEMATIST_TOKEN` → `BM_PILOT_TOKEN`; dashboard install-instruction copy. PRESERVED: product name "Bematist" in brand, `@bematist/*` workspace names, `app_bematist` Postgres role, DB schema, `Bematist-Session` git trailer, `bematist_session_id` cursor payload reader, server-side `BEMATIST_MODEL_CACHE_DIR` + `BEMATIST_SERVICE`, logger prefixes in api/worker. 390 tests unchanged. 40 files, 125+/125-.
