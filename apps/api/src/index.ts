@@ -29,7 +29,7 @@ export interface ServerDeps {
   tokenCache?: InstallationTokenCache;
 }
 
-const WEBHOOK_PATH = /^\/v1\/webhooks\/github\/([^/]+)$/;
+const WEBHOOK_PATH = /^\/v1\/webhooks\/github$/;
 
 export function createFetchHandler(deps: ServerDeps): (req: Request) => Promise<Response> {
   const tokenCache = deps.tokenCache ?? createInMemoryInstallationTokenCache();
@@ -45,16 +45,14 @@ export function createFetchHandler(deps: ServerDeps): (req: Request) => Promise<
       if (req.method === "POST" && url.pathname === "/v1/events") {
         return await eventsRoute(req, deps.sql);
       }
-      const match = WEBHOOK_PATH.exec(url.pathname);
-      if (match && req.method === "POST") {
-        const installationId = match[1] as string;
+      if (WEBHOOK_PATH.test(url.pathname) && req.method === "POST") {
         if (!deps.githubWebhookSecret) {
           return Response.json(
             { error: { code: "internal_error", message: "webhook secret not configured" } },
             { status: 500 },
           );
         }
-        return await githubWebhookRoute(req, installationId, {
+        return await githubWebhookRoute(req, {
           sql: deps.sql,
           adminSql: deps.adminSql,
           webhookSecret: deps.githubWebhookSecret,

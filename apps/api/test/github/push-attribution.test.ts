@@ -31,9 +31,9 @@ function sign(body: string): string {
   return `sha256=${createHmac("sha256", SECRET).update(body).digest("hex")}`;
 }
 
-async function postPush(opts: { installationId: number; body: unknown }): Promise<Response> {
+async function postPush(opts: { body: unknown }): Promise<Response> {
   const bodyStr = JSON.stringify(opts.body);
-  return fetch(`${baseUrl}/v1/webhooks/github/${opts.installationId}`, {
+  return fetch(`${baseUrl}/v1/webhooks/github`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -60,7 +60,6 @@ describe("push attribution (trailer + webhook_scan)", () => {
       VALUES (${sessionId}, ${seeded.orgId}, ${developerId}, 'claude-code', 'src-sess', now())
     `;
     const res = await postPush({
-      installationId: seeded.installationId,
       body: pushEvent({
         installationId: seeded.installationId,
         repoId: 90001,
@@ -101,7 +100,6 @@ describe("push attribution (trailer + webhook_scan)", () => {
       VALUES (${sessionId}, ${seeded.orgId}, ${developerId}, 'claude-code', 'scan-sess', ${sessionStart}, ${now})
     `;
     const res = await postPush({
-      installationId: seeded.installationId,
       body: pushEvent({
         installationId: seeded.installationId,
         repoId: 90002,
@@ -127,7 +125,6 @@ describe("push attribution (trailer + webhook_scan)", () => {
   it("is a no-op (no links) when push contains no commits", async () => {
     const seeded = await seedInstallation(sql);
     const res = await postPush({
-      installationId: seeded.installationId,
       body: pushEvent({
         installationId: seeded.installationId,
         repoId: 90003,

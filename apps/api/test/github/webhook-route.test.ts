@@ -57,14 +57,14 @@ async function postWebhook(opts: {
   };
   const sig = opts.signature === undefined ? sign(bodyStr) : opts.signature;
   if (sig !== null) headers["x-hub-signature-256"] = sig;
-  return fetch(`${baseUrl}/v1/webhooks/github/${opts.installationId}`, {
+  return fetch(`${baseUrl}/v1/webhooks/github`, {
     method: "POST",
     headers,
     body: bodyStr,
   });
 }
 
-describe("POST /v1/webhooks/github/:installation_id", () => {
+describe("POST /v1/webhooks/github", () => {
   it("rejects bad HMAC with 401", async () => {
     const seeded = await seedInstallation(sql);
     const res = await postWebhook({
@@ -379,6 +379,41 @@ describe("POST /v1/webhooks/github/:installation_id", () => {
       SELECT archived_at FROM repos WHERE github_repo_id = 80001
     `;
     expect(rows[0]?.archived_at).not.toBeNull();
+  });
+
+  it("returns 400 when installation.id is missing from body", async () => {
+    const bodyStr = JSON.stringify({ action: "opened", number: 1 });
+    const res = await fetch(`${baseUrl}/v1/webhooks/github`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-github-event": "pull_request",
+        "x-github-delivery": crypto.randomUUID(),
+        "x-hub-signature-256": sign(bodyStr),
+      },
+      body: bodyStr,
+    });
+    expect(res.status).toBe(400);
+    const j = (await res.json()) as { code: string };
+    expect(j.code).toBe("MISSING_INSTALLATION_ID");
+  });
+
+  it("returns 200 for ping event without installation", async () => {
+    const bodyStr = JSON.stringify({});
+    const res = await fetch(`${baseUrl}/v1/webhooks/github`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-github-event": "ping",
+        "x-github-delivery": crypto.randomUUID(),
+        "x-hub-signature-256": sign(bodyStr),
+      },
+      body: bodyStr,
+    });
+    expect(res.status).toBe(200);
+    const j = (await res.json()) as { ok: boolean; event: string };
+    expect(j.ok).toBe(true);
+    expect(j.event).toBe("ping");
   });
 
   it("push links commit to PR when head_sha matches", async () => {

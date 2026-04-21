@@ -35,21 +35,7 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-export async function githubWebhookRoute(
-  req: Request,
-  installationIdStr: string,
-  deps: WebhookRouteDeps,
-): Promise<Response> {
-  let installationId: number;
-  try {
-    installationId = Number.parseInt(installationIdStr, 10);
-    if (!Number.isFinite(installationId) || installationId <= 0) {
-      return json({ error: "invalid installation id", code: "BAD_INSTALLATION_ID" }, 400);
-    }
-  } catch {
-    return json({ error: "invalid installation id", code: "BAD_INSTALLATION_ID" }, 400);
-  }
-
+export async function githubWebhookRoute(req: Request, deps: WebhookRouteDeps): Promise<Response> {
   const rawBody = new Uint8Array(await req.arrayBuffer());
   const signature = req.headers.get("x-hub-signature-256");
   const event = req.headers.get("x-github-event") ?? "";
@@ -62,6 +48,26 @@ export async function githubWebhookRoute(
   });
   if (!verify.ok) {
     return json({ error: "invalid signature", code: "BAD_SIGNATURE", reason: verify.reason }, 401);
+  }
+
+  let body: unknown;
+  try {
+    body = JSON.parse(new TextDecoder().decode(rawBody));
+  } catch {
+    return json({ error: "invalid json" }, 400);
+  }
+
+  const installationFromBody = (body as { installation?: { id?: unknown } })?.installation?.id;
+  const installationId =
+    typeof installationFromBody === "number" &&
+    Number.isFinite(installationFromBody) &&
+    installationFromBody > 0
+      ? installationFromBody
+      : null;
+  if (installationId === null) {
+    // `ping` event from GitHub when webhook URL is first saved — no installation context, just ack.
+    if (event === "ping") return json({ ok: true, event: "ping" });
+    return json({ error: "missing installation.id in body", code: "MISSING_INSTALLATION_ID" }, 400);
   }
 
   const adminSql = deps.adminSql ?? deps.sql;
@@ -111,13 +117,6 @@ export async function githubWebhookRoute(
       LIMIT 1
     `;
     orgId = rows[0]?.org_id ?? null;
-  }
-
-  let body: unknown;
-  try {
-    body = JSON.parse(new TextDecoder().decode(rawBody));
-  } catch {
-    return json({ error: "invalid json" }, 400);
   }
 
   try {
