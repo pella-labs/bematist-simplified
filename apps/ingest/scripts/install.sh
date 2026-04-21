@@ -68,6 +68,47 @@ chmod +x "$tmp"
 mv "$tmp" "$INSTALL_DIR/$BIN_NAME"
 trap - EXIT
 
+# Seed a minimal config with the api URL so `bm-pilot login` posts to the
+# right host. {{API_URL}} is substituted at serve time by the web `/install.sh`
+# route. If the substitution wasn't performed (e.g. running the raw script
+# from GitHub), fall back to an env override or skip config seeding.
+CONFIG_DIR="${BM_PILOT_CONFIG_DIR:-$HOME/.bm-pilot}"
+API_URL_TEMPLATE="{{API_URL}}"
+API_URL_RESOLVED=""
+case "$API_URL_TEMPLATE" in
+  "{{API_URL}}")
+    API_URL_RESOLVED="${BM_PILOT_API_URL:-}"
+    ;;
+  *)
+    API_URL_RESOLVED="$API_URL_TEMPLATE"
+    ;;
+esac
+if [ -n "$API_URL_RESOLVED" ]; then
+  mkdir -p "$CONFIG_DIR"
+  config_path="$CONFIG_DIR/config.json"
+  if [ ! -f "$config_path" ]; then
+    if command -v uuidgen >/dev/null 2>&1; then
+      device_id="$(uuidgen | tr '[:upper:]' '[:lower:]')"
+    elif [ -r /proc/sys/kernel/random/uuid ]; then
+      device_id="$(cat /proc/sys/kernel/random/uuid)"
+    else
+      device_id=""
+    fi
+    installed_at="$(date -u +%Y-%m-%dT%H:%M:%S+00:00)"
+    if [ -n "$device_id" ]; then
+      cat > "$config_path" <<JSON
+{"apiUrl":"$API_URL_RESOLVED","ingestKey":null,"deviceId":"$device_id","adapters":{"mock":{"enabled":true}},"installedAt":"$installed_at"}
+JSON
+      chmod 600 "$config_path"
+      echo "seeded config at $config_path (apiUrl=$API_URL_RESOLVED)"
+    else
+      echo "no uuidgen tool available — skipping config seed; $BIN_NAME will create one on first run"
+    fi
+  else
+    echo "config already exists at $config_path — not overwriting"
+  fi
+fi
+
 echo ""
 echo "installed $INSTALL_DIR/$BIN_NAME"
 echo "make sure $INSTALL_DIR is on your PATH, then run:"

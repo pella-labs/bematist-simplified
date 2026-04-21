@@ -1,6 +1,7 @@
 import type { Config } from "./config";
 
-const KEY_PATTERN = /^bm_[0-9a-f-]{36}_[A-Za-z0-9]{8,}_[A-Za-z0-9]{16,}$/;
+const KEY_PATTERN =
+  /^bm_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_[A-Za-z0-9]{8,64}_[A-Za-z0-9]{16,}$/;
 
 export function validateIngestKey(key: string): void {
   if (!KEY_PATTERN.test(key)) {

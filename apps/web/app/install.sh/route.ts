@@ -29,7 +29,9 @@ async function loadScript(): Promise<string> {
 
 export async function GET(): Promise<Response> {
   const body = await loadScript();
-  return new Response(body, {
+  const apiUrl = process.env.INGEST_API_PUBLIC_URL ?? process.env.INGEST_API_URL ?? "";
+  const substituted = body.replace(/\{\{API_URL\}\}/g, apiUrl);
+  return new Response(substituted, {
     status: 200,
     headers: {
       "content-type": "text/x-shellscript; charset=utf-8",

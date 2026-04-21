@@ -1,16 +1,20 @@
 "use server";
 
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { developers, ingestKeys } from "@bematist/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { sha256Hex } from "@/lib/keyHash";
 import { requireSession, withOrgScope } from "@/lib/session";
 
-function randomB64url(bytes: number): string {
-  return randomBytes(bytes).toString("base64url");
+function randomSecret(): string {
+  // Hex-only: the api parser splits the token on `_`, so the secret must not
+  // contain `_`. Alphanumeric hex sidesteps the whole base64url ambiguity.
+  return randomBytes(32).toString("hex");
 }
 
 function randomIdSuffix(): string {
+  // 12 hex chars — satisfies KEY_ID_RE /^[A-Za-z0-9]{8,64}$/ in the api parser.
   return randomBytes(6).toString("hex");
 }
 
@@ -53,21 +57,23 @@ export async function mintIngestKeyForDeveloper(
     }
     if (!dev) return { ok: false, error: "Failed to upsert developer" };
 
-    const keyId = `bm_${session.org.id.replace(/-/g, "").slice(0, 12)}_${randomIdSuffix()}`;
-    const secret = randomB64url(24);
-    const plaintext = `${keyId}.${secret}`;
-    const sha256 = createHash("sha256").update(plaintext).digest("hex");
+    const suffix = randomIdSuffix();
+    const id = `bm_${session.org.id}_${suffix}`;
+    const secret = randomSecret();
+    if (secret.length < 16) return { ok: false, error: "Failed to generate secret" };
+    const plaintext = `${id}_${secret}`;
+    const keySha256 = sha256Hex(secret);
 
     await tx.insert(ingestKeys).values({
-      id: keyId,
+      id,
       orgId: session.org.id,
       developerId: dev.id,
-      keySha256: sha256,
+      keySha256,
     });
 
     revalidatePath("/admin/keys");
     revalidatePath("/admin/developers");
-    return { ok: true, keyId, plaintext, developerId: dev.id };
+    return { ok: true, keyId: id, plaintext, developerId: dev.id };
   });
 }
 

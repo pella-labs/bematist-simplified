@@ -17,7 +17,7 @@ interface ParsedBearer {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const KEY_ID_RE = /^[A-Za-z0-9]{8,64}$/;
 
-function parseBearer(authHeader: string | null): ParsedBearer {
+export function parseBearer(authHeader: string | null): ParsedBearer {
   if (!authHeader) throw new UnauthorizedError("missing authorization header");
   const match = authHeader.match(/^Bearer\s+(\S+)$/);
   if (!match) throw new UnauthorizedError("malformed authorization header");
@@ -32,7 +32,7 @@ function parseBearer(authHeader: string | null): ParsedBearer {
   return { orgId, keyId, secret };
 }
 
-function sha256Hex(input: string): string {
+export function sha256Hex(input: string): string {
   return createHash("sha256").update(input).digest("hex");
 }
 
