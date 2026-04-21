@@ -1,10 +1,12 @@
 import { MiniLmProvider } from "@bematist/embed";
 import postgres from "postgres";
+import { type CwdTimeLoopHandle, startCwdTimeLoop } from "./jobs/attribute-cwd-time";
 import { type EmbedLoopHandle, startEmbedLoop } from "./jobs/embedPrompts";
 import { runReclusterOnce } from "./jobs/recluster";
 
 const DEFAULT_EMBED_INTERVAL_MS = 30_000;
 const DEFAULT_RECLUSTER_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_CWD_TIME_INTERVAL_MS = 5 * 60 * 1000;
 
 function resolveUrl(): string {
   const url = process.env.ADMIN_DATABASE_URL ?? process.env.DATABASE_URL;
@@ -35,11 +37,20 @@ export async function startWorker(): Promise<WorkerHandle> {
     process.env.WORKER_RECLUSTER_INTERVAL_MS,
     DEFAULT_RECLUSTER_INTERVAL_MS,
   );
+  const cwdTimeIntervalMs = parseIntervalMs(
+    process.env.WORKER_CWD_TIME_INTERVAL_MS,
+    DEFAULT_CWD_TIME_INTERVAL_MS,
+  );
 
   const embedHandle: EmbedLoopHandle = startEmbedLoop({
     sql,
     provider,
     intervalMs: embedIntervalMs,
+  });
+
+  const cwdTimeHandle: CwdTimeLoopHandle = startCwdTimeLoop({
+    sql,
+    intervalMs: cwdTimeIntervalMs,
   });
 
   let reclusterRunning: Promise<unknown> | null = null;
@@ -55,13 +66,14 @@ export async function startWorker(): Promise<WorkerHandle> {
   }, reclusterIntervalMs);
 
   console.log(
-    `[worker] started; embed interval=${embedIntervalMs}ms, recluster interval=${reclusterIntervalMs}ms`,
+    `[worker] started; embed=${embedIntervalMs}ms recluster=${reclusterIntervalMs}ms cwd_time=${cwdTimeIntervalMs}ms`,
   );
 
   return {
     async stop() {
       clearInterval(reclusterTimer);
       await embedHandle.stop();
+      await cwdTimeHandle.stop();
       if (reclusterRunning) await reclusterRunning;
       await sql.end({ timeout: 5 });
       console.log("[worker] stopped");

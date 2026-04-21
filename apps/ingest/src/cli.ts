@@ -1,5 +1,10 @@
 import { createInterface } from "node:readline/promises";
 import { disableCursor, ensureCursorConsent } from "./adapters/cursor";
+import {
+  disableTrailerHook,
+  enableTrailerHook,
+  statusTrailerHook,
+} from "./adapters/git/trailerHook";
 import { clearIngestKey, runLoginFlow } from "./auth";
 import { runCaptureGitShaCli } from "./commands/captureGitSha";
 import { runCursorHook } from "./commands/cursorHook";
@@ -49,6 +54,8 @@ export async function run(io: CliIO): Promise<number> {
       return await cmdCursor(io, path, args, log, err);
     case "cursor-hook":
       return await runCursorHook({ argv: io.argv, stdin: process.stdin });
+    case "git":
+      return await cmdGit(args, log, err);
     default:
       err(`unknown command: ${cmd}`);
       err(usage());
@@ -68,6 +75,9 @@ function usage(): string {
     "  bematist uninstall        Print the removal checklist",
     "  bematist cursor enable    Enable Cursor adapter (prompts for hooks install)",
     "  bematist cursor disable   Disable Cursor adapter (removes hooks entries)",
+    "  bematist git enable       Install the global prepare-commit-msg trailer hook",
+    "  bematist git disable      Remove the trailer hook + restore prior core.hooksPath",
+    "  bematist git status       Report trailer-hook install state",
     "  bematist version          Print the client version",
     "  bematist help             Show this message",
     "",
@@ -239,6 +249,36 @@ async function cmdCursor(
     return 0;
   } catch (e) {
     err(`cursor ${sub} failed: ${messageOf(e)}`);
+    return 1;
+  }
+}
+
+async function cmdGit(
+  args: string[],
+  log: (m: string) => void,
+  err: (m: string) => void,
+): Promise<number> {
+  const sub = args[0];
+  if (!sub || (sub !== "enable" && sub !== "disable" && sub !== "status")) {
+    err("usage: bematist git <enable|disable|status>");
+    return 2;
+  }
+  try {
+    if (sub === "enable") {
+      const res = await enableTrailerHook();
+      log(JSON.stringify(res, null, 2));
+      return 0;
+    }
+    if (sub === "disable") {
+      const res = await disableTrailerHook();
+      log(JSON.stringify(res, null, 2));
+      return 0;
+    }
+    const res = await statusTrailerHook();
+    log(JSON.stringify(res, null, 2));
+    return 0;
+  } catch (e) {
+    err(`git ${sub} failed: ${messageOf(e)}`);
     return 1;
   }
 }

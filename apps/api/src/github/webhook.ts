@@ -1,7 +1,8 @@
 import type { Sql } from "postgres";
 import { handleInstallation, handleInstallationRepositories } from "./handlers/installation";
 import { handlePullRequest } from "./handlers/pullRequest";
-import { handlePush } from "./handlers/push";
+import { handlePush, type PushPayload } from "./handlers/push";
+import { runPushAttribution } from "./handlers/pushAttribution";
 import type { InstallationTokenCache } from "./install";
 import { verifyGithubSignature } from "./verify";
 
@@ -171,7 +172,9 @@ async function dispatch(
     return;
   }
   if (event === "push") {
-    await handlePush(body as never, { sql: deps.sql, orgId });
+    const payload = body as PushPayload;
+    await handlePush(payload, { sql: deps.sql, orgId });
+    await runPushAttribution(payload, { sql: deps.sql, orgId });
     return;
   }
   if (event === "pull_request") {

@@ -1,6 +1,11 @@
 import { createClaudeCodeAdapter } from "./adapters/claude-code";
 import { createCodexAdapter } from "./adapters/codex";
 import { createCursorAdapter } from "./adapters/cursor";
+import {
+  clearCurrentSession,
+  defaultCurrentSessionPath,
+  writeCurrentSession,
+} from "./adapters/git/currentSession";
 import { createMockAdapter } from "./adapters/mock";
 import type { Adapter, Stop } from "./adapters/types";
 import { Batcher } from "./batcher";
@@ -16,6 +21,8 @@ export interface DaemonHandle {
 export interface DaemonOptions {
   config: Config;
   log?: (msg: string) => void;
+  /** Test seam: override the path where the active session id is persisted. */
+  currentSessionPath?: string;
 }
 
 export async function startDaemon(opts: DaemonOptions): Promise<DaemonHandle> {
@@ -45,13 +52,48 @@ export async function startDaemon(opts: DaemonOptions): Promise<DaemonHandle> {
     },
   });
 
+  const sessionPath = opts.currentSessionPath ?? defaultCurrentSessionPath();
+  const activeSessions = new Set<string>();
+  let lastStampedSession: string | null = null;
+
+  const onEvent = (event: { kind: string; session_id: string }) => {
+    if (event.kind === "session_start") {
+      activeSessions.add(event.session_id);
+      void writeCurrentSession(event.session_id, sessionPath)
+        .then(() => {
+          lastStampedSession = event.session_id;
+        })
+        .catch((err) => log(`write current-session failed: ${errMessage(err)}`));
+    } else if (event.kind === "session_end") {
+      activeSessions.delete(event.session_id);
+      if (activeSessions.size === 0) {
+        lastStampedSession = null;
+        void clearCurrentSession(sessionPath).catch((err) =>
+          log(`clear current-session failed: ${errMessage(err)}`),
+        );
+      } else if (lastStampedSession === event.session_id) {
+        const next = activeSessions.values().next().value;
+        if (next) {
+          void writeCurrentSession(next, sessionPath)
+            .then(() => {
+              lastStampedSession = next;
+            })
+            .catch((err) => log(`write current-session failed: ${errMessage(err)}`));
+        }
+      }
+    }
+  };
+
   const adapters = resolveAdapters(config).map((a) =>
     a({ deviceId: config.deviceId, clientVersion: CLIENT_VERSION }),
   );
   const stops: Stop[] = [];
   for (const a of adapters) {
     log(`starting adapter: ${a.name}`);
-    const stop = await a.start((event) => batcher.enqueue(event));
+    const stop = await a.start((event) => {
+      onEvent(event);
+      batcher.enqueue(event);
+    });
     stops.push(stop);
   }
 
@@ -71,6 +113,11 @@ export async function startDaemon(opts: DaemonOptions): Promise<DaemonHandle> {
       }
       log("draining batcher");
       await batcher.stop();
+      try {
+        await clearCurrentSession(sessionPath);
+      } catch (err) {
+        log(`clear current-session failed: ${errMessage(err)}`);
+      }
       log("stopped");
     },
   };

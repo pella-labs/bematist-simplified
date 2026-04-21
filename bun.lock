@@ -15,6 +15,7 @@
       "dependencies": {
         "@bematist/contracts": "workspace:*",
         "@bematist/db": "workspace:*",
+        "@bematist/worker": "workspace:*",
         "postgres": "^3.4.4",
         "zod": "^3.23.0",
       },
