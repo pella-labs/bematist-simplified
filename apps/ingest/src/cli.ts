@@ -1,5 +1,8 @@
 import { createInterface } from "node:readline/promises";
+import { disableCursor, ensureCursorConsent } from "./adapters/cursor";
 import { clearIngestKey, runLoginFlow } from "./auth";
+import { runCaptureGitShaCli } from "./commands/captureGitSha";
+import { runCursorHook } from "./commands/cursorHook";
 import { type Config, defaultConfigPath, freshConfig, readConfig, writeConfig } from "./config";
 import { CLIENT_VERSION, startDaemon } from "./daemon";
 
@@ -40,6 +43,12 @@ export async function run(io: CliIO): Promise<number> {
       return await cmdRun(path, args, log, err);
     case "uninstall":
       return await cmdUninstall(path, log);
+    case "capture-git-sha":
+      return await runCaptureGitShaCli();
+    case "cursor":
+      return await cmdCursor(io, path, args, log, err);
+    case "cursor-hook":
+      return await runCursorHook({ argv: io.argv, stdin: process.stdin });
     default:
       err(`unknown command: ${cmd}`);
       err(usage());
@@ -57,8 +66,14 @@ function usage(): string {
     "  bematist status           Show current configuration",
     "  bematist run              Start the telemetry daemon in foreground",
     "  bematist uninstall        Print the removal checklist",
+    "  bematist cursor enable    Enable Cursor adapter (prompts for hooks install)",
+    "  bematist cursor disable   Disable Cursor adapter (removes hooks entries)",
     "  bematist version          Print the client version",
     "  bematist help             Show this message",
+    "",
+    "Internal (invoked by editor hooks, not users):",
+    "  bematist capture-git-sha  Claude Code / Codex SessionStart hook handler",
+    "  bematist cursor-hook      Cursor hook event forwarder",
     "",
     `Config path: ${defaultConfigPath()}`,
   ].join("\n");
@@ -181,6 +196,51 @@ function adapterNames(c: Config): string[] {
   return Object.entries(c.adapters)
     .filter(([, v]) => v.enabled)
     .map(([k]) => k);
+}
+
+async function cmdCursor(
+  io: CliIO,
+  path: string,
+  args: string[],
+  log: (m: string) => void,
+  err: (m: string) => void,
+): Promise<number> {
+  const sub = args[0];
+  if (!sub || (sub !== "enable" && sub !== "disable")) {
+    err("usage: bematist cursor <enable|disable>");
+    return 2;
+  }
+  try {
+    if (sub === "enable") {
+      const prompts = {
+        async prompt(q: string): Promise<string> {
+          if (io.prompt) return io.prompt(q);
+          const rl = createInterface({ input: process.stdin, output: process.stdout });
+          try {
+            return await rl.question(q);
+          } finally {
+            rl.close();
+          }
+        },
+        print(msg: string) {
+          log(msg);
+        },
+      };
+      const res = await ensureCursorConsent({
+        configPath: path,
+        binaryPath: process.execPath,
+        prompts,
+      });
+      log(JSON.stringify(res, null, 2));
+      return 0;
+    }
+    const res = await disableCursor({ configPath: path });
+    log(JSON.stringify(res, null, 2));
+    return 0;
+  } catch (e) {
+    err(`cursor ${sub} failed: ${messageOf(e)}`);
+    return 1;
+  }
 }
 
 function messageOf(e: unknown): string {

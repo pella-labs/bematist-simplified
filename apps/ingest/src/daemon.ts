@@ -1,3 +1,6 @@
+import { createClaudeCodeAdapter } from "./adapters/claude-code";
+import { createCodexAdapter } from "./adapters/codex";
+import { createCursorAdapter } from "./adapters/cursor";
 import { createMockAdapter } from "./adapters/mock";
 import type { Adapter, Stop } from "./adapters/types";
 import { Batcher } from "./batcher";
@@ -87,6 +90,12 @@ function pickAdapter(name: string): (ctx: { deviceId: string; clientVersion: str
   switch (name) {
     case "mock":
       return (ctx) => createMockAdapter(ctx);
+    case "claude-code":
+      return (ctx) => createClaudeCodeAdapter(ctx);
+    case "codex":
+      return (ctx) => createCodexAdapter(ctx);
+    case "cursor":
+      return (ctx) => createCursorAdapter(ctx);
     default:
       throw new Error(`unknown adapter: ${name}`);
   }
