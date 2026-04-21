@@ -50,19 +50,30 @@ export default function InstallPage() {
               {
                 id: "install-comment-download",
                 kind: "comment",
-                text: "Download, verify, and start the collector",
+                text: "1. Download and verify the binary",
               },
               { id: "install-cmd-curl", kind: "command", text: brand.installCommand },
-              { id: "install-spacer", kind: "spacer" },
+              { id: "install-spacer-1", kind: "spacer" },
               {
-                id: "install-comment-token",
+                id: "install-comment-login",
                 kind: "comment",
-                text: "Then point it at your org token",
+                text: "2. Paste the ingest key the admin generated for you",
               },
               {
-                id: "install-cmd-serve",
+                id: "install-cmd-login",
                 kind: "command",
-                text: "bm-pilot serve --token $BM_PILOT_TOKEN",
+                text: "bm-pilot login <token>",
+              },
+              { id: "install-spacer-2", kind: "spacer" },
+              {
+                id: "install-comment-start",
+                kind: "comment",
+                text: "3. Start the collector — it auto-detects Claude Code, Codex, Cursor",
+              },
+              {
+                id: "install-cmd-start",
+                kind: "command",
+                text: "bm-pilot start",
               },
             ]}
           />

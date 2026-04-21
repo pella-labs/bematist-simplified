@@ -37,7 +37,7 @@ export function freshConfig(apiUrl: string = DEFAULT_API_URL): Config {
     apiUrl,
     ingestKey: null,
     deviceId: randomUUID(),
-    adapters: { mock: { enabled: true } },
+    adapters: {},
     installedAt: new Date().toISOString(),
   };
 }

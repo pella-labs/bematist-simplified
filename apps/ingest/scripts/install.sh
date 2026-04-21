@@ -97,7 +97,7 @@ if [ -n "$API_URL_RESOLVED" ]; then
     installed_at="$(date -u +%Y-%m-%dT%H:%M:%S+00:00)"
     if [ -n "$device_id" ]; then
       cat > "$config_path" <<JSON
-{"apiUrl":"$API_URL_RESOLVED","ingestKey":null,"deviceId":"$device_id","adapters":{"mock":{"enabled":true}},"installedAt":"$installed_at"}
+{"apiUrl":"$API_URL_RESOLVED","ingestKey":null,"deviceId":"$device_id","adapters":{},"installedAt":"$installed_at"}
 JSON
       chmod 600 "$config_path"
       echo "seeded config at $config_path (apiUrl=$API_URL_RESOLVED)"
@@ -112,4 +112,5 @@ fi
 echo ""
 echo "installed $INSTALL_DIR/$BIN_NAME"
 echo "make sure $INSTALL_DIR is on your PATH, then run:"
-echo "  $BIN_NAME login"
+echo "  $BIN_NAME login <token>"
+echo "  $BIN_NAME start"

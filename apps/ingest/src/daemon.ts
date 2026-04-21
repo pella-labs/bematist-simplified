@@ -1,3 +1,5 @@
+import { existsSync, statSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import { createClaudeCodeAdapter } from "./adapters/claude-code";
 import { createCodexAdapter } from "./adapters/codex";
 import { createCursorAdapter } from "./adapters/cursor";
@@ -11,6 +13,22 @@ import type { Adapter, Stop } from "./adapters/types";
 import { Batcher } from "./batcher";
 import type { Config } from "./config";
 import { Uploader } from "./uploader";
+
+export const DAEMON_LOG_MAX_BYTES = 10 * 1024 * 1024;
+
+export async function trimDaemonLogIfLarge(
+  path: string,
+  maxBytes: number = DAEMON_LOG_MAX_BYTES,
+): Promise<{ trimmed: boolean; sizeBefore: number; sizeAfter: number }> {
+  if (!existsSync(path)) return { trimmed: false, sizeBefore: 0, sizeAfter: 0 };
+  const before = statSync(path).size;
+  if (before <= maxBytes) return { trimmed: false, sizeBefore: before, sizeAfter: before };
+  const raw = await readFile(path, "utf8");
+  const half = Math.floor(raw.length / 2);
+  const truncated = raw.slice(half);
+  await writeFile(path, truncated, { mode: 0o600 });
+  return { trimmed: true, sizeBefore: before, sizeAfter: truncated.length };
+}
 
 // Baked in at compile time via `bun build --define`. See apps/ingest/build.ts
 // and .github/workflows/release.yml. Fallback is for local `bun run` during dev.

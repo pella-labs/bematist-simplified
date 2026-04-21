@@ -1,13 +1,35 @@
+import { existsSync, readFileSync } from "node:fs";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { disableCursor, ensureCursorConsent } from "./adapters/cursor";
 import {
+  HOOK_EVENT as CLAUDE_HOOK_EVENT,
+  defaultSettingsPath as defaultClaudeSettingsPath,
+} from "./adapters/claude-code/installHook";
+import { HOOK_MARKER as CODEX_HOOK_MARKER } from "./adapters/codex/installHook";
+import { disableCursor, ensureCursorConsent } from "./adapters/cursor";
+import { defaultCursorHooksPath } from "./adapters/cursor/installHooks";
+import {
+  defaultTrailerHookPaths,
   disableTrailerHook,
   enableTrailerHook,
   statusTrailerHook,
 } from "./adapters/git/trailerHook";
-import { clearIngestKey, runLoginFlow } from "./auth";
+import { clearIngestKey, runLoginFlow, validateIngestKey } from "./auth";
 import { runCaptureGitShaCli } from "./commands/captureGitSha";
 import { runCursorHook } from "./commands/cursorHook";
+import { detectTools } from "./commands/detect";
+import { runDoctor } from "./commands/doctor";
+import { runOnboard } from "./commands/onboard";
+import {
+  installService,
+  resolveDeps,
+  serviceStatus,
+  startService as startServiceCmd,
+  stopService as stopServiceCmd,
+  uninstallService,
+} from "./commands/service";
 import { type Config, defaultConfigPath, freshConfig, readConfig, writeConfig } from "./config";
 import { CLIENT_VERSION, startDaemon } from "./daemon";
 
@@ -39,13 +61,21 @@ export async function run(io: CliIO): Promise<number> {
       log(CLIENT_VERSION);
       return 0;
     case "login":
-      return await cmdLogin(io, path, log, err);
+      return await cmdLogin(io, path, args, log, err);
     case "logout":
       return await cmdLogout(path, log, err);
     case "status":
-      return await cmdStatus(path, log);
+      return await cmdStatus(io, path, log);
     case "run":
       return await cmdRun(path, args, log, err);
+    case "start":
+      return await cmdStart(io, path, args, log, err);
+    case "stop":
+      return await cmdStop(args, log, err);
+    case "restart":
+      return await cmdRestart(args, log, err);
+    case "doctor":
+      return await cmdDoctor(io, path, args, log);
     case "uninstall":
       return await cmdUninstall(path, log);
     case "capture-git-sha":
@@ -68,10 +98,14 @@ function usage(): string {
     "bm-pilot — developer telemetry ingest",
     "",
     "Usage:",
-    "  bm-pilot login            Paste an ingest key to authenticate",
+    "  bm-pilot login [token]    Store an ingest key (positional arg skips the prompt)",
+    "  bm-pilot start            Auto-detect tools, install hooks, install + start service",
+    "  bm-pilot stop [--uninstall]  Stop the service (optionally remove it)",
+    "  bm-pilot restart          Stop then start the service (skips re-onboarding)",
+    "  bm-pilot status           Print JSON status of config, service, hooks, detected tools",
+    "  bm-pilot doctor [--json]  Run diagnostics; exit non-zero on any critical failure",
     "  bm-pilot logout           Clear the stored ingest key",
-    "  bm-pilot status           Show current configuration",
-    "  bm-pilot run              Start the telemetry daemon in foreground",
+    "  bm-pilot run              Run the daemon in the foreground (used by the service unit)",
     "  bm-pilot uninstall        Print the removal checklist",
     "  bm-pilot cursor enable    Enable Cursor adapter (prompts for hooks install)",
     "  bm-pilot cursor disable   Disable Cursor adapter (removes hooks entries)",
@@ -92,9 +126,11 @@ function usage(): string {
 async function cmdLogin(
   io: CliIO,
   path: string,
+  args: string[],
   log: (m: string) => void,
   err: (m: string) => void,
 ): Promise<number> {
+  const positional = args.find((a) => !a.startsWith("-"));
   const current = (await readConfig(path)) ?? freshConfig(io.env.BM_PILOT_API_URL ?? undefined);
   const prompts = {
     async prompt(q: string): Promise<string> {
@@ -111,7 +147,7 @@ async function cmdLogin(
     },
   };
   try {
-    const updated = await runLoginFlow(prompts, current);
+    const updated = await runLoginFlow(prompts, current, positional ? { token: positional } : {});
     await writeConfig(updated, path);
     log(`logged in — config saved to ${path}`);
     return 0;
@@ -137,7 +173,7 @@ async function cmdLogout(
   return 0;
 }
 
-async function cmdStatus(path: string, log: (m: string) => void): Promise<number> {
+async function cmdStatus(io: CliIO, path: string, log: (m: string) => void): Promise<number> {
   const current = await readConfig(path);
   const status: Record<string, unknown> = {
     configPath: path,
@@ -157,6 +193,26 @@ async function cmdStatus(path: string, log: (m: string) => void): Promise<number
     status.installedAt = current.installedAt;
   }
   status.lastFlushAt = null;
+
+  const home = homedir();
+  const detected = detectTools({ home, platform: process.platform, env: io.env });
+  status.detectedTools = detected;
+  status.hookStates = collectHookStates({ home, platform: process.platform });
+
+  try {
+    const deps = resolveDeps({ platform: process.platform, home, env: io.env });
+    const svc = await serviceStatus(deps);
+    status.serviceInstalled = svc.installed;
+    status.daemonRunning = svc.running;
+    status.servicePid = svc.pid;
+    status.serviceUptimeSec = svc.uptimeSec;
+  } catch {
+    status.serviceInstalled = false;
+    status.daemonRunning = false;
+    status.servicePid = null;
+    status.serviceUptimeSec = null;
+  }
+
   log(JSON.stringify(status, null, 2));
   return 0;
 }
@@ -169,7 +225,7 @@ async function cmdRun(
 ): Promise<number> {
   const current = await readConfig(path);
   if (!current?.ingestKey) {
-    err("not logged in — run `bm-pilot login` first");
+    err("not logged in — run `bm-pilot login <token>` first");
     return 1;
   }
   try {
@@ -188,9 +244,143 @@ async function cmdRun(
   }
 }
 
+async function cmdStart(
+  io: CliIO,
+  path: string,
+  _args: string[],
+  log: (m: string) => void,
+  err: (m: string) => void,
+): Promise<number> {
+  const current = await readConfig(path);
+  if (!current) {
+    err("no config found — run `bm-pilot login <token>` first");
+    return 1;
+  }
+  if (!current.ingestKey) {
+    err("not logged in — run `bm-pilot login <token>` first");
+    return 1;
+  }
+  try {
+    validateIngestKey(current.ingestKey);
+  } catch (e) {
+    err(`invalid ingest key: ${messageOf(e)}`);
+    return 1;
+  }
+
+  const binaryPath = resolveBinaryPath(io.env);
+  const result = await runOnboard({
+    configPath: path,
+    home: homedir(),
+    platform: process.platform,
+    env: io.env,
+    binaryPath,
+    log,
+  });
+
+  for (const [tool, present] of Object.entries(result.detected)) {
+    log(`${present ? "[ok]" : "[skip]"} detect: ${tool}`);
+  }
+  for (const w of result.warnings) log(`[warn] ${w}`);
+  for (const a of result.enabled) log(`[ok] adapter enabled: ${a}`);
+
+  if (!result.ok) {
+    err(`onboarding failed: ${result.reason}`);
+    return 1;
+  }
+
+  const deps = resolveDeps({
+    platform: process.platform,
+    home: homedir(),
+    env: io.env,
+    binaryPath,
+  });
+  const installRes = await installService(deps);
+  if (!installRes.ok) {
+    log(`[warn] service install failed: ${installRes.message}`);
+    const fallback = await startFallbackDaemon(binaryPath, log);
+    if (fallback.ok) {
+      log(`[ok] fallback daemon started pid=${fallback.pid}`);
+      return 0;
+    }
+    err(`[fail] fallback daemon failed: ${fallback.message}`);
+    return 1;
+  }
+  log(`[ok] service installed at ${installRes.path ?? "(platform-managed)"}`);
+
+  const startRes = await startServiceCmd(deps);
+  if (!startRes.ok) {
+    log(`[warn] service start: ${startRes.message}`);
+  } else {
+    log(`[ok] service started`);
+  }
+  return 0;
+}
+
+async function cmdStop(
+  args: string[],
+  log: (m: string) => void,
+  err: (m: string) => void,
+): Promise<number> {
+  const uninstall = args.includes("--uninstall");
+  const deps = resolveDeps({ platform: process.platform, home: homedir(), env: process.env });
+  const stopRes = await stopServiceCmd(deps);
+  if (stopRes.ok) log(`[ok] service stopped`);
+  else log(`[warn] service stop: ${stopRes.message}`);
+
+  await killFallbackDaemon(log);
+
+  if (uninstall) {
+    const unRes = await uninstallService(deps);
+    if (unRes.ok) log(`[ok] service uninstalled`);
+    else {
+      err(`[fail] service uninstall: ${unRes.message}`);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+async function cmdRestart(
+  _args: string[],
+  log: (m: string) => void,
+  err: (m: string) => void,
+): Promise<number> {
+  const deps = resolveDeps({ platform: process.platform, home: homedir(), env: process.env });
+  const stopRes = await stopServiceCmd(deps);
+  if (stopRes.ok) log(`[ok] service stopped`);
+  else log(`[warn] service stop: ${stopRes.message}`);
+  const startRes = await startServiceCmd(deps);
+  if (startRes.ok) {
+    log(`[ok] service started`);
+    return 0;
+  }
+  err(`[fail] service start: ${startRes.message}`);
+  return 1;
+}
+
+async function cmdDoctor(
+  io: CliIO,
+  path: string,
+  args: string[],
+  log: (m: string) => void,
+): Promise<number> {
+  const jsonOutput = args.includes("--json");
+  const deps = resolveDeps({ platform: process.platform, home: homedir(), env: io.env });
+  const res = await runDoctor({
+    configPath: path,
+    home: homedir(),
+    platform: process.platform,
+    env: io.env,
+    jsonOutput,
+    serviceStatus: () => serviceStatus(deps),
+  });
+  log(res.output);
+  return res.exitCode;
+}
+
 async function cmdUninstall(path: string, log: (m: string) => void): Promise<number> {
   log("To fully uninstall bm-pilot:");
-  log("  1. Stop any running `bm-pilot run` process");
+  log("  1. Stop the service: `bm-pilot stop --uninstall`");
   log("  2. Remove the binary: rm ~/.local/bin/bm-pilot");
   log(`  3. Remove config + state: rm -rf ${pathParent(path)}`);
   log("  4. Revoke the ingest key in the dashboard");
@@ -285,4 +475,134 @@ async function cmdGit(
 
 function messageOf(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
+}
+
+function resolveBinaryPath(env: Record<string, string | undefined>): string {
+  return env.BM_PILOT_BINARY ?? process.execPath ?? "bm-pilot";
+}
+
+interface HookStatesShape {
+  claudeCode: boolean;
+  codex: boolean;
+  cursor: boolean;
+  gitTrailer: boolean;
+}
+
+function collectHookStates(ctx: { home: string; platform: NodeJS.Platform }): HookStatesShape {
+  return {
+    claudeCode: isClaudeCodeHookInstalled(defaultClaudeSettingsPath(ctx.home)),
+    codex: isCodexHookInstalled(join(ctx.home, ".codex", "hooks.json")),
+    cursor: isCursorHookInstalled(defaultCursorHooksPath(ctx.home)),
+    gitTrailer: existsSync(defaultTrailerHookPaths(ctx.home).hookScript),
+  };
+}
+
+function isClaudeCodeHookInstalled(path: string): boolean {
+  try {
+    if (!existsSync(path)) return false;
+    const raw = readFileSync(path, "utf8");
+    const parsed = JSON.parse(raw);
+    const ev = parsed?.hooks?.[CLAUDE_HOOK_EVENT];
+    return (
+      Array.isArray(ev) &&
+      ev.some(
+        (g: { hooks?: Array<{ command?: string }> }) =>
+          Array.isArray(g?.hooks) &&
+          g.hooks.some((h) => typeof h?.command === "string" && h.command.includes("bm-pilot")),
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isCodexHookInstalled(path: string): boolean {
+  try {
+    if (!existsSync(path)) return false;
+    const raw = readFileSync(path, "utf8");
+    const parsed = JSON.parse(raw);
+    const hooks = Array.isArray(parsed?.hooks) ? parsed.hooks : [];
+    return hooks.some((h: { id?: string }) => h?.id === CODEX_HOOK_MARKER);
+  } catch {
+    return false;
+  }
+}
+
+function isCursorHookInstalled(path: string): boolean {
+  try {
+    if (!existsSync(path)) return false;
+    const raw = readFileSync(path, "utf8");
+    const parsed = JSON.parse(raw);
+    const hooks = parsed?.hooks ?? {};
+    return Object.values(hooks).some(
+      (list) =>
+        Array.isArray(list) &&
+        (list as Array<{ source?: string }>).some((e) => e?.source === "bm-pilot"),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function fallbackPidPath(): string {
+  return join(homedir(), ".bm-pilot", "daemon.pid");
+}
+
+async function startFallbackDaemon(
+  binaryPath: string,
+  log: (m: string) => void,
+): Promise<{ ok: boolean; pid: number; message: string }> {
+  try {
+    const p = Bun.spawn({
+      cmd: [binaryPath, "run"],
+      stdin: "ignore",
+      stdout: "ignore",
+      stderr: "ignore",
+      detached: true,
+    });
+    const pidPath = fallbackPidPath();
+    await mkdir(pidPath.slice(0, pidPath.lastIndexOf("/")), { recursive: true });
+    await writeFile(pidPath, String(p.pid));
+    log(`[ok] wrote fallback pid to ${pidPath}`);
+    return { ok: true, pid: p.pid ?? 0, message: "detached fallback started" };
+  } catch (err) {
+    return { ok: false, pid: 0, message: messageOf(err) };
+  }
+}
+
+async function killFallbackDaemon(log: (m: string) => void): Promise<void> {
+  const pidPath = fallbackPidPath();
+  if (!existsSync(pidPath)) return;
+  try {
+    const pidText = (await readFile(pidPath, "utf8")).trim();
+    const pid = Number.parseInt(pidText, 10);
+    if (!Number.isFinite(pid) || pid <= 0) return;
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch {
+      // already gone
+    }
+    await waitForExit(pid, 5000);
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {
+      // already gone
+    }
+    await unlink(pidPath).catch(() => {});
+    log(`[ok] stopped fallback daemon pid=${pid}`);
+  } catch (err) {
+    log(`[warn] fallback kill failed: ${messageOf(err)}`);
+  }
+}
+
+async function waitForExit(pid: number, timeoutMs: number): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      process.kill(pid, 0);
+    } catch {
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
 }

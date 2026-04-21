@@ -16,7 +16,21 @@ export interface LoginPrompts {
   print(msg: string): void;
 }
 
-export async function runLoginFlow(prompts: LoginPrompts, config: Config): Promise<Config> {
+export interface LoginOptions {
+  /** When supplied, skip the interactive prompt and use this token verbatim. */
+  token?: string;
+}
+
+export async function runLoginFlow(
+  prompts: LoginPrompts,
+  config: Config,
+  opts: LoginOptions = {},
+): Promise<Config> {
+  if (opts.token !== undefined) {
+    const key = opts.token.trim();
+    validateIngestKey(key);
+    return { ...config, ingestKey: key };
+  }
   prompts.print(`Sign in at ${config.apiUrl} and generate an ingest key.`);
   prompts.print("Paste the key below (format: bm_<orgId>_<keyId>_<secret>):");
   const key = (await prompts.prompt("ingest key: ")).trim();
