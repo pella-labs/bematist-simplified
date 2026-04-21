@@ -12,6 +12,8 @@ coverage
 .env.production.local
 .env.test
 .env.test.local
+.env.railway
+.env.railway.*
 !.env.example
 
 bun.lockb.bak
