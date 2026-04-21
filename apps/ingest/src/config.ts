@@ -17,6 +17,10 @@ export const ConfigSchema = z
     deviceId: z.string().uuid(),
     adapters: z.record(AdapterConfigSchema),
     installedAt: z.string().datetime({ offset: true }),
+    // Set by `bm-pilot git enable` to remember the prior value of
+    // `core.hooksPath` so `bm-pilot git disable` can restore it. `null`
+    // means "no prior hooks path was set".
+    gitHooksPathBackup: z.string().nullable().optional(),
   })
   .strict();
 
