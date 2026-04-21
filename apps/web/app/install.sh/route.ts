@@ -32,7 +32,13 @@ async function loadScript(): Promise<string> {
 export async function GET(): Promise<Response> {
   const body = await loadScript();
   const apiUrl = process.env.INGEST_API_PUBLIC_URL ?? process.env.INGEST_API_URL ?? "";
-  const substituted = body.replace(/\{\{API_URL\}\}/g, apiUrl);
+  // Substitute only the marker assignment line, not all occurrences — the
+  // install.sh also references "{{API_URL}}" in the case-pattern that detects
+  // the "not substituted" state, and we need that literal to survive.
+  const substituted = body.replace(
+    /^API_URL_TEMPLATE="\{\{API_URL\}\}"$/m,
+    `API_URL_TEMPLATE="${apiUrl}"`,
+  );
   return new Response(substituted, {
     status: 200,
     headers: {

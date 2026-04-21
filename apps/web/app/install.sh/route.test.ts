@@ -34,12 +34,16 @@ describe("GET /install.sh", () => {
     expect(res.headers.get("cache-control")).toContain("max-age=60");
   });
 
-  test("substitutes {{API_URL}} from INGEST_API_PUBLIC_URL", async () => {
+  // The route substitutes ONLY the `API_URL_TEMPLATE="{{API_URL}}"` assignment
+  // line. The literal `{{API_URL}}` inside the case-pattern must survive so
+  // the bash script can detect "substitution not performed" at runtime.
+
+  test("substitutes the template assignment from INGEST_API_PUBLIC_URL", async () => {
     process.env.INGEST_API_PUBLIC_URL = "https://api.example.com";
     const res = await GET();
     const body = await res.text();
-    expect(body).not.toContain("{{API_URL}}");
     expect(body).toContain('API_URL_TEMPLATE="https://api.example.com"');
+    expect(body).toContain('"{{API_URL}}")');
   });
 
   test("prefers INGEST_API_PUBLIC_URL over INGEST_API_URL", async () => {
@@ -55,16 +59,14 @@ describe("GET /install.sh", () => {
     process.env.INGEST_API_URL = "http://api.railway.internal:8000";
     const res = await GET();
     const body = await res.text();
-    expect(body).not.toContain("{{API_URL}}");
     expect(body).toContain('API_URL_TEMPLATE="http://api.railway.internal:8000"');
   });
 
   test("substitutes with empty string when no env var is set (keeps script runnable)", async () => {
     const res = await GET();
     const body = await res.text();
-    expect(body).not.toContain("{{API_URL}}");
-    // The bash `case` in install.sh must still handle the empty substitution
-    // gracefully, i.e. the seeding block is skipped and the installer still works.
     expect(body).toContain('API_URL_TEMPLATE=""');
+    // Case-pattern preserved so the bash script's fallback branch still fires.
+    expect(body).toContain('"{{API_URL}}")');
   });
 });
