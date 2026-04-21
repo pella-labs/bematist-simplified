@@ -575,6 +575,96 @@ Every workstream section below is the contract an `implementer` subagent will be
 
 ---
 
+### WS-20: Onboarding UX — single-command setup
+
+**Purpose:** Collapse current 9-step onboarding to 3 commands. New dev receives an ingest key and a one-liner from admin, runs:
+
+```bash
+curl -fsSL https://<app>/install.sh | sh
+bm-pilot login <token>
+bm-pilot start
+```
+
+After `start`, the daemon runs in the background, auto-detects installed AI-coding tools (Claude Code / Codex / Cursor), installs their hooks, enables the git-trailer hook, disables the mock adapter, and survives terminal close + computer restart via the OS service manager (launchd / systemd / Task Scheduler). No config editing, no hook JSON hand-editing.
+
+**Depends on:** WS-8 (claude-code adapter + its `installHook`), WS-9 (codex adapter + its `installHook`), WS-10 (cursor adapter + existing `bm-pilot cursor enable`), WS-13 (git trailer hook + existing `bm-pilot git enable`), WS-14 (service-install templates), WS-17 (bm-pilot naming), WS-19 (login token format).
+
+**Files owned:**
+- `apps/ingest/src/cli.ts` — add `start`, `stop`, `restart` subcommands; extend `status` output; change `login` to accept a positional token arg; wrap current `run` as `run --foreground`-equivalent (kept for debugging).
+- `apps/ingest/src/commands/onboard.ts` (new) — orchestration layer that: detects available AI tools; toggles adapters in config; invokes existing `installHook` routines from each adapter package; installs the git trailer hook; disables mock; writes back config atomically.
+- `apps/ingest/src/commands/service.ts` (new) — cross-platform service manager abstraction: `installService()`, `startService()`, `stopService()`, `uninstallService()`, `serviceStatus()`. Dispatches to one of:
+  - `apps/ingest/src/commands/service/launchd.ts` — macOS; uses `launchctl bootstrap gui/$UID <plist>` + `launchctl kickstart` + `launchctl bootout`; writes plist to `~/Library/LaunchAgents/com.bm-pilot.agent.plist` from `infra/service-install/launchd.plist.tmpl`.
+  - `apps/ingest/src/commands/service/systemd.ts` — Linux; uses `systemctl --user enable --now bm-pilot.service` + `systemctl --user disable --now`; writes unit to `~/.config/systemd/user/bm-pilot.service` from `infra/service-install/systemd.service.tmpl`.
+  - `apps/ingest/src/commands/service/windows.ts` — Windows; uses PowerShell `Register-ScheduledTask` / `Unregister-ScheduledTask` via `schtasks.exe` CLI; wraps the logic in `infra/service-install/windows-service-install.ps1`.
+- `apps/ingest/src/commands/detect.ts` (new) — synchronous filesystem checks: `hasClaudeCode()` (`~/.claude/` exists), `hasCodex()` (`~/.codex/` or `$CODEX_HOME`), `hasCursor()` (platform-specific Cursor config path). Return a `DetectionResult` struct consumed by `onboard.ts`.
+- `apps/ingest/src/commands/doctor.ts` (new) — diagnostic report: config validity, token format, api reachability (`GET /healthz`), adapter detection + hook install states, daemon running, service installed. Non-zero exit on any failing critical check. Prints remediation hints inline.
+- `apps/ingest/src/auth.ts` — extend `promptLogin` to accept a provided token, skipping the interactive prompt when present.
+- `apps/ingest/src/config.ts` — tighten `freshConfig()` to ship `adapters: {}` (empty) instead of `{ mock: { enabled: true } }`. Mock adapter becomes opt-in.
+- `apps/ingest/src/adapters/claude-code/installHook.ts` + `apps/ingest/src/adapters/codex/installHook.ts` — already have `installHook({...})` / `uninstallHook(...)` helpers; do NOT rewrite, just call them from `onboard.ts`.
+- `apps/ingest/scripts/install.sh` — add a concluding line that suggests running `bm-pilot login <token>` then `bm-pilot start` (currently only suggests `bm-pilot login`).
+- `apps/web/app/(marketing)/install/page.tsx` + `apps/web/components/dashboard/EmptyState.tsx` — update the copy to show the 3-line onboarding (currently shows an older flow).
+
+**Do NOT touch:**
+- Adapter internals (tailers, parsers, normalize) — all solid; WS-20 is pure CLI / orchestration.
+- Admin dashboard server actions, schema, webhook receiver, API auth — out of scope.
+- Existing `bm-pilot cursor enable` / `bm-pilot git enable` / `bm-pilot capture-git-sha` / `bm-pilot cursor-hook` subcommands — keep as-is (used internally by `onboard.ts` and by hook installers).
+- `plan.md` — orchestrator updates status on merge.
+
+**Deliverables:**
+
+1. **CLI surface changes:**
+   - `bm-pilot login [token]` — positional `token` arg; still prompts when absent. Validate existing regex.
+   - `bm-pilot start` — (a) runs `onboard.ts` end-to-end: detects tools, toggles adapters, installs all hooks (Claude Code SessionStart, Codex hooks, Cursor hooks, git trailer), disables mock. (b) Installs the OS service + starts it via `service.ts`. Idempotent: running twice is a no-op for already-installed parts. Prints per-step status with ✓/✗ markers only if the user explicitly opts into emojis via a flag; default is plain ASCII (`[ok]` / `[skip]` / `[fail]`).
+   - `bm-pilot stop` — stops service; does NOT uninstall service by default. Pass `--uninstall` to also remove the launchd/systemd/scheduled-task entry.
+   - `bm-pilot restart` — `stop` then `start` (skips onboarding re-run; just bounces the service).
+   - `bm-pilot status` — extend current JSON output: add `daemonRunning`, `servicePid`, `serviceUptimeSec`, `serviceInstalled`, `hookStates: { claudeCode, codex, cursor, gitTrailer }`, `detectedTools`. Keep existing fields.
+   - `bm-pilot doctor` — diagnostic output; always prints human-readable table; `--json` flag for machine output.
+   - `bm-pilot run` — stays foreground (used by the service unit and by local debugging). No behavior change.
+
+2. **Fresh-install defaults:**
+   - `freshConfig()` ships `adapters: {}`. The seeded install.sh config matches.
+   - On first `bm-pilot start`, adapters are populated by auto-detection.
+   - On upgrade (existing config has `adapters.mock.enabled: true`), `bm-pilot start` disables mock and populates real adapters. Writes `.bak` snapshot of the pre-migration config at `~/.bm-pilot/config.json.bak-pre-ws20`.
+
+3. **Autostart behavior:**
+   - `bm-pilot start` installs + launches the service in one shot.
+   - Service runs `bm-pilot run` (the existing foreground command).
+   - Service survives logout + reboot.
+   - Logs routed to `~/.bm-pilot/daemon.log` (stdout + stderr appended). Log rotation = out of scope (daemon will trim if file >10MB, truncating the first half — minimal built-in protection).
+
+4. **Error paths:**
+   - Missing ingest key → `bm-pilot start` refuses with clear message pointing at `bm-pilot login`.
+   - Token invalid → fails before starting service; explains format.
+   - Service install fails (no launchd/systemd/no Task Scheduler) → falls back to spawning a detached background process writing PID to `~/.bm-pilot/daemon.pid`. `bm-pilot stop` reads PID, SIGTERM, waits 5s, SIGKILL.
+   - Hook install fails for any one tool → log warning, continue with others. `doctor` will flag it for manual attention.
+   - Already-installed detection: each subsystem is idempotent. Running `bm-pilot start` twice is safe.
+
+**Tests:**
+- Unit tests for `detect.ts` with temp home dirs; present / absent matrices.
+- Unit tests for `onboard.ts` that mock the hook installers; verify correct call sequence, mock disable, adapter enable, config bak.
+- Unit tests for `service.ts` dispatch logic with an injectable `platform` arg (macOS/linux/win32) + injected `exec` fn; verify correct commands issued. Real service install is NOT tested in CI; documented in a manual test matrix at `apps/ingest/docs/onboard-manual-tests.md` (new file — the ONLY docs file WS-20 creates).
+- `doctor.ts`: unit tests covering each check; mock `fetch` for the api reachability probe.
+- `login` positional token: add test to existing `apps/ingest/src/auth.test.ts`.
+- Full suite must stay green. Baseline at start of WS-20: 415 pass / 0 fail (+ one known tailer flake). Expected after: ~430-450 pass / 0 fail.
+
+**Acceptance:**
+- `curl … /install.sh | sh && bm-pilot login <token> && bm-pilot start` on a fresh macOS arm64 machine: daemon is running, survives `killall Terminal` + logout/login, adapters for detected tools are active, hooks are installed, mock is disabled.
+- Same sequence on Linux x64 (Ubuntu 22.04+): systemd user unit installed, `systemctl --user status bm-pilot` green, daemon running.
+- Same sequence on Windows x64 (Git Bash + PowerShell): scheduled task registered, daemon running, survives logout/login.
+- `bm-pilot status` reports all of the above accurately.
+- `bm-pilot stop --uninstall` removes the service cleanly; re-running `bm-pilot start` reinstalls cleanly.
+- `bm-pilot doctor` on a healthy install → exit 0, all ✓. On a broken install (e.g. rm -rf'd hooks) → exit 1, specific actionable output.
+
+**Non-goals (explicit):**
+- No dashboard invite UI. Teammates can view their own `/me` only by admin pre-generating an invite token via `signInvite()` — separate workstream.
+- No log rotation beyond the built-in 10MB truncation — revisit if dogfood logs blow up.
+- No `bm-pilot upgrade` command. Users rerun the `curl | sh` to upgrade. In-place binary self-update is a future workstream.
+- No auth-less enrollment / device-code flow — still paste-token v1.
+- No per-adapter opt-out flags on `start`. If a tool is detected and fails, we warn and continue; manual override lives in `~/.bm-pilot/config.json`.
+- No "bm-pilot init" wizard with prompts. `start` is non-interactive by design.
+
+---
+
 ### WS-15: Internal dogfood
 
 **Purpose:** All 5 team members install, run, and verify. Collect friction notes. No code work unless bugs appear.
@@ -632,6 +722,7 @@ Each workstream gets a status line kept up to date by the orchestrator:
 - WS-11: merged (2026-04-20, commit `628d47c`, merge `53fcb65`). Dashboard pages. Routes: `/overview` (NOT `/` — marketing owns `/` per WS-3; Next.js 16 refuses dual page.tsx resolving to same URL), `/me`, `/sessions`, `/sessions/[id]`, `/developers`, `/developers/[id]`, `/prompts`, `/compare`, `/admin/developers`, `/admin/keys`, `/api/dashboard/overview`. All gate on `requireSession()`; admin pages additionally gate on `session.role === 'admin'`. Cost delta tile uses `computeMonthlyDelta` via `apps/web/components/dashboard/orgDb.ts` — **third Turbopack-workaround duplication** of `withOrgScope` (after WS-4's `lib/session.ts` and WS-5's callback route). Data access in `apps/web/components/dashboard/queries.ts` (overview aggregates, developers, sessions, transcript join with `events`+`prompts`, attribution signals from `session_commit_links`, cluster summary, ingest keys, compare shape). Widgets: `StatTile`, `CostDeltaTile`, `SessionRow`, `SessionFilterBar`, `DeveloperCard`, `Transcript`, `DashNav`, `EmptyState`. Admin developers page links out to WS-4's programmatic `signInvite` flow (no invite UI; follow-up workstream for revocable invites table). Compare "cluster similarity" reads `prompts.cluster_id` (same-cluster y/n) — populated by WS-12 post-merge. 42 new tests (16 format + 18 queries integration + 8 authz + Playwright redirects smoke). Full signed-in Playwright deferred (documented manual steps in e2e file).
 - WS-12: merged (2026-04-20, commit `160f319`, merge `bd99370`). Embedding worker + prompt clustering. `packages/embed` additively exports: `embed(text)`, `embedBatch(texts)`, `MINI_LM_DIM=384`, `MINI_LM_MODEL_ID`, `MiniLmProvider`, `EmbeddingProvider` type, `chooseK`, `clusterEmbeddings`, `cosineSimilarity`, `ClusterOptions`, `ClusterResult`. MiniLM via `@xenova/transformers` `Xenova/all-MiniLM-L6-v2` (384-dim, quantized); lazy `import()` on first call; `env.allowLocalModels = false`. k-means++ deterministic (Mulberry32 PRNG), `k = clamp(floor(sqrt(n/2)), 5, 50)`, 20-iter cap, empty-cluster re-seeding from farthest point. Worker: `apps/worker/src/{index,jobs/embedPrompts,jobs/recluster}.ts`. `runEmbedOnce({sql, provider, batchSize=32, maxPerTick=300})` pulls `prompts WHERE embedding IS NULL`, per-batch transaction with org `set_config`. `runReclusterOnce({sql, seed})` iterates distinct `org_id`, k-means per org, writes `prompt_clusters` (label = nearest-to-centroid prompt text, 80-char truncation with `…`), updates `prompts.cluster_id`. Idempotent. `startWorker()` wires SIGTERM/SIGINT to drain + exit 0. Intervals: `WORKER_EMBED_INTERVAL_MS` (default 30s), `WORKER_RECLUSTER_INTERVAL_MS` (default 24h) — interval-ms instead of spec's cron for test-friendliness. Notable pitfall: `postgres-js` truncates `timestamptz` bound params to JS ms precision; worked around by selecting `created_at::text` and comparing text. Model cache via `BEMATIST_MODEL_CACHE_DIR`. 24 new tests; full suite 337.
 - WS-13: merged (2026-04-20, commit `ef03bf9`). All three attribution signals + git trailer hook. Worker schedules `attribute-cwd-time` every 5 min (env override `WORKER_CWD_TIME_INTERVAL_MS`); matches session.cwd path-segment against `repos.name` short-name (derived from `remote.origin.url`), pulls commits in `[started_at − 10m, ended_at + 10m]`, inserts `signal='cwd_time'` `confidence=0.6`. `attribute-trailer` parses `Bematist-Session: <uuid>` trailers — server-side parser walks back from last non-empty line collecting contiguous trailer block (matches git's semantics; ignores body-level trailer-shaped lines), strict UUIDv1-5 regex, dedups within message; `signal='trailer'` `confidence=1.0`. `attribute-scan` skips commits with valid trailer (trailer path owns those), falls back to `developers.email = commit.authorEmail` within `committed_at ± 10m`; `signal='webhook_scan'` `confidence=0.4`. Webhook integration: `apps/api/src/github/webhook.ts` calls `runPushAttribution` (in `apps/api/src/github/handlers/pushAttribution.ts`) inline after `handlePush` under same tenant-scoped sql so all writes respect RLS. New cross-package dep: `apps/api` → `@bematist/worker` (job code reused by webhook receiver). Trailer hook: `bematist git enable|disable|status` in `apps/ingest/src/adapters/git/trailerHook.ts` — sets global `core.hooksPath ~/.bematist/git-hooks`, backs up prior value into config under `gitHooksPathBackup`, generates `prepare-commit-msg` shell that runs `git interpret-trailers --if-exists addIfDifferent --in-place "$1"` reading session id from `~/.bematist/current-session`. **No commit amending. No history rewriting.** Daemon (`apps/ingest/src/daemon.ts`) writes `~/.bematist/current-session` on `session_start` events and clears on `session_end`/stop; tracks active sessions via `Set` so multiple concurrent sessions are handled (last-stamped persists; cleared only when zero remain). 45 new tests across 7 files. Pre-existing flake: `claude-code tailer.test.ts` "emits session_end on file rotation and a new session_start" reproduces on HEAD before WS-13 changes; passes on most reruns. Not a blocker.
+- WS-20: todo — **NEXT**. Single-command onboarding (`bm-pilot login <token>` + `bm-pilot start`). Auto-detects Claude Code / Codex / Cursor, installs all hooks, disables mock, installs + runs OS service (launchd / systemd / scheduled task). Full spec §WS-20 above.
 - WS-19: merged (2026-04-21, commit `e8d9eff`). Fixes 3-way mismatch between admin mint-key, CLI regex, and API parser that made every minted ingest key unusable. Admin `mintIngestKeyForDeveloper` in `apps/web/app/admin/keys/actions.ts` now emits `bm_<fullOrgUUID>_<suffix>_<secret>` (4 underscore-separated parts matching `apps/api/src/auth/verifyIngestKey.ts#parseBearer`), stores DB id as `bm_<fullOrgUUID>_<suffix>` (no truncation of orgId), and hashes ONLY the secret (`sha256(secret)` — not `sha256(keyId.secret)`). Secret alphabet switched from base64url to 64-hex chars so the parser's `_` split is unambiguous. CLI `KEY_PATTERN` in `apps/ingest/src/auth.ts` tightened to `^bm_<uuid>_[A-Za-z0-9]{8,64}_[A-Za-z0-9]{16,}$` — exact match with API. `apps/api/src/auth/verifyIngestKey.ts` promotes `parseBearer` + `sha256Hex` from `__test__` namespace to top-level exports; web consumes via `apps/web/lib/keyHash.ts` (local copy to avoid web→api bundle pulling `Bun.serve`). Install.sh bug: `DEFAULT_API_URL` was `http://localhost:8000` hardcoded at compile. Now `apps/ingest/scripts/install.sh` seeds `~/.bm-pilot/config.json` post-install with `apiUrl` substituted from the web's `/install.sh` route, which replaces the `{{API_URL}}` template literal with `INGEST_API_PUBLIC_URL` (preferred) or `INGEST_API_URL` (fallback) env var. Seed includes full `ConfigSchema.strict()` shape: `apiUrl`, `ingestKey:null`, `deviceId:<uuid>` (via `uuidgen` or `/proc/sys/kernel/random/uuid`), `adapters:{mock:{enabled:true}}`, `installedAt:<ISO>`. If neither env is set, literal `{{API_URL}}` passes through and install.sh falls back to `BM_PILOT_API_URL` env var or skips seeding (CLI will then default to localhost for dev). +15 tests; full suite 415/415. Orchestrator set `INGEST_API_PUBLIC_URL=https://api-production-2834.up.railway.app` on web service before merge.
 - WS-18: merged (2026-04-21, commit `db09c68`). Auto-backfill GitHub repos on admin install callback. Previously `/admin/github/callback` only inserted the `github_installations` row; repo population depended entirely on the `installation.created` webhook, leading to "0 repos" until a later push. Now the callback also mints an installation token via JWT (RS256) + calls `GET /installation/repositories` (paginated) + upserts into `repos`. Best-effort: missing creds → short-circuit with `{ ok: false, reason: "missing-creds" }`; any network/DB error in mint/list/upsert → logged, not surfaced, redirect still returns `status=ok`. Architecture: `apps/web/lib/githubRepos.ts` copies the ~30-line JWT + list-repos + upsert helper (avoids a `apps/web → @bematist/api` dep that would drag `Bun.serve` + the full api router into Next.js 16's bundle graph). Route factored as `handleCallback(req, deps)` with a `CallbackDeps` DI seam mirroring WS-5's `WebhookRouteDeps`; `GET` is a 1-line wrapper building `productionDeps()` (lazy imports `@/lib/session` at request time so tests stay Postgres-free). +10 tests; full suite 400/400.
 - WS-17: merged (2026-04-21, commit `f103dea`). Rename CLI binary from `bematist` to `bm-pilot` (temp name — final TBD by team). Scope: binary filenames in `apps/ingest/build.ts` (4 targets), `apps/ingest/scripts/install.sh`, `.github/workflows/release.yml`; state dir `~/.bematist/` → `~/.bm-pilot/`; all user-facing CLI help text; hook install commands (`bm-pilot capture-git-sha`, `bm-pilot cursor-hook`); env vars `BEMATIST_BINARY_BASE_URL` → `BM_PILOT_BINARY_BASE_URL`, `BEMATIST_INSTALL_DIR` → `BM_PILOT_INSTALL_DIR`, `BEMATIST_TOKEN` → `BM_PILOT_TOKEN`; dashboard install-instruction copy. PRESERVED: product name "Bematist" in brand, `@bematist/*` workspace names, `app_bematist` Postgres role, DB schema, `Bematist-Session` git trailer, `bematist_session_id` cursor payload reader, server-side `BEMATIST_MODEL_CACHE_DIR` + `BEMATIST_SERVICE`, logger prefixes in api/worker. 390 tests unchanged. 40 files, 125+/125-.
