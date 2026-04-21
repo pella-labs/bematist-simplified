@@ -60,11 +60,11 @@ export function defaultSessionsDir(): string {
 }
 
 export function defaultOffsetsPath(): string {
-  return join(homedir(), ".bematist", "offsets-codex.json");
+  return join(homedir(), ".bm-pilot", "offsets-codex.json");
 }
 
 export function defaultOffsetsLockPath(): string {
-  return join(homedir(), ".bematist", "offsets-codex.lock");
+  return join(homedir(), ".bm-pilot", "offsets-codex.lock");
 }
 
 export class CodexTailer {
@@ -430,7 +430,7 @@ export class CodexTailer {
     return env;
   }
 
-  // --- offsets persistence (shared with Claude Code via ~/.bematist/offsets.json) ---
+  // --- offsets persistence (shared with Claude Code via ~/.bm-pilot/offsets.json) ---
 
   private pendingOffsets = new Map<string, number>();
 

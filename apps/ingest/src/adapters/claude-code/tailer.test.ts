@@ -63,7 +63,7 @@ function assistantLine(
 }
 
 beforeEach(async () => {
-  tmp = await mkdtemp(join(tmpdir(), "bematist-tailer-"));
+  tmp = await mkdtemp(join(tmpdir(), "bm-pilot-tailer-"));
   projectsDir = join(tmp, "projects");
   stateDir = join(tmp, "state");
   await mkdir(projectsDir, { recursive: true });

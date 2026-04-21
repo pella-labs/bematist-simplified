@@ -8,7 +8,7 @@ let dir: string;
 let path: string;
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), "bematist-cfg-"));
+  dir = await mkdtemp(join(tmpdir(), "bm-pilot-cfg-"));
   path = join(dir, "nested", "config.json");
 });
 

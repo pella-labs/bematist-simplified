@@ -9,7 +9,7 @@ import { createCursorAdapter, disableCursor, ensureCursorConsent } from "./index
 let dir: string;
 let configPath: string;
 let hooksPath: string;
-const binaryPath = "/usr/local/bin/bematist";
+const binaryPath = "/usr/local/bin/bm-pilot";
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), "bm-idx-"));
@@ -127,7 +127,7 @@ describe("disableCursor", () => {
 
     const hooks = JSON.parse(await readFile(hooksPath, "utf8"));
     const beforeList = hooks.hooks?.beforeSubmitPrompt ?? [];
-    const ours = beforeList.find((e: { source?: string }) => e.source === "bematist");
+    const ours = beforeList.find((e: { source?: string }) => e.source === "bm-pilot");
     expect(ours).toBeUndefined();
   });
 });

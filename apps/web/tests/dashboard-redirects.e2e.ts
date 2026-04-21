@@ -16,7 +16,7 @@ import { expect, test } from "@playwright/test";
  *  3. Visit /auth/sign-in, sign in with GitHub.
  *  4. If first login in the org, bootstrap at /post-auth/new-org.
  *  5. Open /admin/keys, mint an ingest key for your email. Copy it.
- *  6. Run `bematist login` with the key, then `bematist run`.
+ *  6. Run `bm-pilot login` with the key, then `bm-pilot run`.
  *  7. Back in the browser, visit /overview. Expect: tiles populate within ~5s.
  *  8. Visit /me — your linked developer appears.
  *  9. Visit /sessions/<id> — transcript renders with events.

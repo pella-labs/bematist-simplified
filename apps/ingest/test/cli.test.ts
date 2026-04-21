@@ -19,7 +19,7 @@ function captureIO(
 } {
   const captured: Captured = { out: [], err: [] };
   const io: Parameters<typeof run>[0] = {
-    argv: ["bun", "bematist", ...argv],
+    argv: ["bun", "bm-pilot", ...argv],
     stdout: { write: (c: string) => captured.out.push(c) },
     stderr: { write: (c: string) => captured.err.push(c) },
     env: {},
@@ -32,7 +32,7 @@ let dir: string;
 let path: string;
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), "bematist-cli-"));
+  dir = await mkdtemp(join(tmpdir(), "bm-pilot-cli-"));
   path = join(dir, "config.json");
 });
 
@@ -44,7 +44,7 @@ describe("cli", () => {
   it("prints help and returns 0", async () => {
     const { io, captured } = captureIO(["help"], { configPath: path });
     expect(await run(io)).toBe(0);
-    expect(captured.out.join("")).toContain("bematist");
+    expect(captured.out.join("")).toContain("bm-pilot");
     expect(captured.out.join("")).toContain("login");
   });
 
@@ -119,7 +119,7 @@ describe("cli", () => {
     expect(await run(io)).toBe(0);
     const text = captured.out.join("");
     expect(text).toContain("uninstall");
-    expect(text).toContain("~/.local/bin/bematist");
+    expect(text).toContain("~/.local/bin/bm-pilot");
   });
 
   it("rejects unknown commands with exit code 2", async () => {

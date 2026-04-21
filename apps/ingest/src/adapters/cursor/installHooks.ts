@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { CURSOR_HOOK_EVENTS, type CursorHookEvent } from "./normalize";
 
-const BEMATIST_MARK = "bematist";
+const BM_PILOT_MARK = "bm-pilot";
 
 export function defaultCursorHooksPath(home: string = homedir()): string {
   return join(home, ".cursor", "hooks.json");
@@ -50,7 +50,7 @@ export async function readHooksFile(path: string): Promise<HooksFile | null> {
 export function buildBematistEntry(binaryPath: string, event: CursorHookEvent): HookEntry {
   return {
     command: `${quoteIfNeeded(binaryPath)} cursor-hook ${event}`,
-    source: BEMATIST_MARK,
+    source: BM_PILOT_MARK,
   };
 }
 
@@ -67,7 +67,7 @@ export function mergeHooks(
     const list = (nextHooks[event] ?? []).slice();
     const ours = buildBematistEntry(binaryPath, event);
     const existingIdx = list.findIndex(
-      (e) => typeof e === "object" && e !== null && (e as HookEntry).source === BEMATIST_MARK,
+      (e) => typeof e === "object" && e !== null && (e as HookEntry).source === BM_PILOT_MARK,
     );
     if (existingIdx === -1) {
       list.push(ours);
@@ -97,7 +97,7 @@ export function removeBematistHooks(existing: HooksFile | null): {
   for (const event of CURSOR_HOOK_EVENTS) {
     const list = currentHooks[event] ?? [];
     const filtered = list.filter(
-      (e) => !(typeof e === "object" && e !== null && (e as HookEntry).source === BEMATIST_MARK),
+      (e) => !(typeof e === "object" && e !== null && (e as HookEntry).source === BM_PILOT_MARK),
     );
     if (filtered.length !== list.length) changed = true;
     if (filtered.length > 0) nextHooks[event] = filtered;

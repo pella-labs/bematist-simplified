@@ -9,7 +9,7 @@ export const GIT_HOOK_DIR_NAME = "git-hooks";
 export const BACKUP_KEY = "gitHooksPathBackup";
 
 export interface TrailerHookPaths {
-  /** `~/.bematist` equivalent. Tests override this. */
+  /** `~/.bm-pilot` equivalent. Tests override this. */
   stateDir: string;
   /** Path to the prepare-commit-msg script. Derived from stateDir. */
   hookScript: string;
@@ -17,7 +17,7 @@ export interface TrailerHookPaths {
   hookDir: string;
   /** File storing the current active session id. Derived from stateDir. */
   sessionFile: string;
-  /** `~/.bematist/config.json` equivalent; we write the backup key there. */
+  /** `~/.bm-pilot/config.json` equivalent; we write the backup key there. */
   configPath: string;
 }
 
@@ -58,7 +58,7 @@ export interface StatusResult {
 }
 
 export function defaultTrailerHookPaths(home: string = homedir()): TrailerHookPaths {
-  const stateDir = join(home, ".bematist");
+  const stateDir = join(home, ".bm-pilot");
   const hookDir = join(stateDir, GIT_HOOK_DIR_NAME);
   return {
     stateDir,
@@ -85,7 +85,7 @@ export function resolvePaths(overrides: Partial<TrailerHookPaths> = {}): Trailer
 export function buildPrepareCommitMsgScript(sessionFile: string): string {
   const quoted = shellQuote(sessionFile);
   return `#!/bin/sh
-# bematist prepare-commit-msg: append Bematist-Session trailer.
+# bm-pilot prepare-commit-msg: append Bematist-Session trailer.
 # Never fail the commit — exit 0 on every path.
 set -e
 

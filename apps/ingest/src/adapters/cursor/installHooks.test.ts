@@ -13,7 +13,7 @@ import { CURSOR_HOOK_EVENTS } from "./normalize";
 
 let dir: string;
 let hooksPath: string;
-const binaryPath = "/usr/local/bin/bematist";
+const binaryPath = "/usr/local/bin/bm-pilot";
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), "bm-hooks-"));
@@ -25,7 +25,7 @@ afterEach(async () => {
 });
 
 describe("installHooks", () => {
-  test("creates hooks.json with all 8 bematist entries when file does not exist", async () => {
+  test("creates hooks.json with all 8 bm-pilot entries when file does not exist", async () => {
     const r = await installHooks({ hooksPath, binaryPath });
     expect(r.changed).toBe(true);
     expect(r.backupCreated).toBe(false);
@@ -35,7 +35,7 @@ describe("installHooks", () => {
       const list = file?.hooks?.[event] ?? [];
       const ours = list.find(
         (e) =>
-          typeof e === "object" && e !== null && (e as { source?: string }).source === "bematist",
+          typeof e === "object" && e !== null && (e as { source?: string }).source === "bm-pilot",
       );
       expect(ours).toBeDefined();
     }
@@ -69,7 +69,7 @@ describe("installHooks", () => {
     expect((preList[0] as { command: string }).command).toBe("another-user-script");
   });
 
-  test("idempotent: running twice yields a single bematist entry per event", async () => {
+  test("idempotent: running twice yields a single bm-pilot entry per event", async () => {
     await installHooks({ hooksPath, binaryPath });
     const secondRun = await installHooks({ hooksPath, binaryPath });
     expect(secondRun.changed).toBe(false);
@@ -80,7 +80,7 @@ describe("installHooks", () => {
       const list = file?.hooks?.[event] ?? [];
       const ours = list.filter(
         (e) =>
-          typeof e === "object" && e !== null && (e as { source?: string }).source === "bematist",
+          typeof e === "object" && e !== null && (e as { source?: string }).source === "bm-pilot",
       );
       expect(ours).toHaveLength(1);
     }
@@ -99,7 +99,7 @@ describe("installHooks", () => {
     const backupContent = JSON.parse(await readFile(backupPath, "utf8"));
     expect(backupContent.hooks.preToolUse[0].command).toBe("u");
 
-    const second = await installHooks({ hooksPath, binaryPath: "/other/bematist" });
+    const second = await installHooks({ hooksPath, binaryPath: "/other/bm-pilot" });
     expect(second.changed).toBe(true);
     expect(second.backupCreated).toBe(false);
     const stillOriginal = JSON.parse(await readFile(backupPath, "utf8"));
@@ -128,10 +128,10 @@ describe("installHooks", () => {
 
   test("mergeHooks updates entry when binary path changes", () => {
     const first = mergeHooks(null, binaryPath).next;
-    const { next, changed } = mergeHooks(first, "/new/path/bematist");
+    const { next, changed } = mergeHooks(first, "/new/path/bm-pilot");
     expect(changed).toBe(true);
     const cmd = next.hooks?.beforeSubmitPrompt?.[0] as { command: string };
-    expect(cmd.command).toContain("/new/path/bematist");
+    expect(cmd.command).toContain("/new/path/bm-pilot");
   });
 
   test("removeBematistHooks strips only our entries", () => {
@@ -147,9 +147,9 @@ describe("installHooks", () => {
   });
 
   test("quotes binary path with spaces in the command string", () => {
-    const entry = buildBematistEntry("/Users/me/Library/bin/bematist app/bematist", "sessionStart");
+    const entry = buildBematistEntry("/Users/me/Library/bin/bm-pilot app/bm-pilot", "sessionStart");
     expect(entry.command).toBe(
-      '"/Users/me/Library/bin/bematist app/bematist" cursor-hook sessionStart',
+      '"/Users/me/Library/bin/bm-pilot app/bm-pilot" cursor-hook sessionStart',
     );
   });
 });

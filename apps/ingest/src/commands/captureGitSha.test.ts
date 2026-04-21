@@ -7,7 +7,7 @@ import { captureGitSha } from "./captureGitSha";
 let tmp: string;
 
 beforeEach(async () => {
-  tmp = await mkdtemp(join(tmpdir(), "bematist-capture-"));
+  tmp = await mkdtemp(join(tmpdir(), "bm-pilot-capture-"));
 });
 
 afterEach(async () => {

@@ -8,7 +8,7 @@ import { createClaudeCodeAdapter } from "./index";
 let tmp: string;
 
 beforeEach(async () => {
-  tmp = await mkdtemp(join(tmpdir(), "bematist-adapter-"));
+  tmp = await mkdtemp(join(tmpdir(), "bm-pilot-adapter-"));
 });
 
 afterEach(async () => {
@@ -74,7 +74,7 @@ describe("createClaudeCodeAdapter", () => {
     await stop();
     const settings = JSON.parse(await readFile(settingsPath, "utf8"));
     const hooks = settings.hooks.SessionStart[0].hooks;
-    expect(hooks.some((h: { command: string }) => h.command === "bematist capture-git-sha")).toBe(
+    expect(hooks.some((h: { command: string }) => h.command === "bm-pilot capture-git-sha")).toBe(
       true,
     );
   });

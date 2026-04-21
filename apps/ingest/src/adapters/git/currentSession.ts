@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { SESSION_FILE_NAME } from "./trailerHook";
 
 export function defaultCurrentSessionPath(home: string = homedir()): string {
-  return join(home, ".bematist", SESSION_FILE_NAME);
+  return join(home, ".bm-pilot", SESSION_FILE_NAME);
 }
 
 export async function writeCurrentSession(sessionId: string, path?: string): Promise<void> {

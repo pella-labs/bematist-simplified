@@ -80,7 +80,7 @@ export class Uploader {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${this.ingestKey}`,
-            "User-Agent": `bematist-ingest/${this.clientVersion}`,
+            "User-Agent": `bm-pilot-ingest/${this.clientVersion}`,
           },
           body,
         });

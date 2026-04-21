@@ -94,7 +94,7 @@ export async function ensureCursorConsent(
   const now = opts.now ?? (() => new Date().toISOString());
   const hooksPath = opts.hooksPath ?? defaultCursorHooksPath();
   const current = await readConfig(opts.configPath);
-  if (!current) throw new Error("no bematist config found — run `bematist login` first");
+  if (!current) throw new Error("no bm-pilot config found — run `bm-pilot login` first");
 
   const cursorCfg = (current.adapters.cursor ?? {}) as { enabled?: boolean; promptedAt?: string };
   if (cursorCfg.promptedAt) {
@@ -106,7 +106,7 @@ export async function ensureCursorConsent(
     };
   }
 
-  opts.prompts.print("Install Cursor hooks? bematist will add entries to ~/.cursor/hooks.json.");
+  opts.prompts.print("Install Cursor hooks? bm-pilot will add entries to ~/.cursor/hooks.json.");
   const answer = (await opts.prompts.prompt("Install Cursor hooks? [Y/n] ")).trim();
   const yes = answer.length === 0 || /^y(es)?$/i.test(answer);
   const promptedAt = now();

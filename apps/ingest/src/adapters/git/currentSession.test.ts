@@ -9,7 +9,7 @@ let dir: string;
 let path: string;
 
 beforeEach(async () => {
-  dir = join(tmpdir(), `bematist-cs-${randomUUID()}`);
+  dir = join(tmpdir(), `bm-pilot-cs-${randomUUID()}`);
   await mkdir(dir, { recursive: true });
   path = join(dir, "current-session");
 });

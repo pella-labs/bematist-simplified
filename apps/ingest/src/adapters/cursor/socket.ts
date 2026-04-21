@@ -17,8 +17,8 @@ export interface StartSocketOptions {
 }
 
 export function defaultCursorSocketAddress(home: string = homedir()): string {
-  if (platform() === "win32") return "\\\\?\\pipe\\bematist-cursor";
-  return join(home, ".bematist", "cursor.sock");
+  if (platform() === "win32") return "\\\\?\\pipe\\bm-pilot-cursor";
+  return join(home, ".bm-pilot", "cursor.sock");
 }
 
 export async function startCursorSocket(opts: StartSocketOptions): Promise<SocketServer> {

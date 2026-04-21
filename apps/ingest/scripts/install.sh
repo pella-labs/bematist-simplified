@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${BEMATIST_BINARY_BASE_URL:-https://github.com/pella-labs/bematist-simplified/releases/latest/download}"
-INSTALL_DIR="${BEMATIST_INSTALL_DIR:-$HOME/.local/bin}"
-BIN_NAME="bematist"
+BASE_URL="${BM_PILOT_BINARY_BASE_URL:-https://github.com/pella-labs/bematist-simplified/releases/latest/download}"
+INSTALL_DIR="${BM_PILOT_INSTALL_DIR:-$HOME/.local/bin}"
+BIN_NAME="bm-pilot"
 
 os="$(uname -s)"
 arch="$(uname -m)"
@@ -11,20 +11,20 @@ arch="$(uname -m)"
 case "$os" in
   Darwin)
     case "$arch" in
-      arm64) target="bematist-darwin-arm64" ;;
-      x86_64) target="bematist-darwin-x64" ;;
+      arm64) target="bm-pilot-darwin-arm64" ;;
+      x86_64) target="bm-pilot-darwin-x64" ;;
       *) echo "unsupported macOS arch: $arch" >&2; exit 1 ;;
     esac
     ;;
   Linux)
     case "$arch" in
-      x86_64) target="bematist-linux-x64" ;;
+      x86_64) target="bm-pilot-linux-x64" ;;
       *) echo "unsupported Linux arch: $arch" >&2; exit 1 ;;
     esac
     ;;
   MINGW*|MSYS*|CYGWIN*|Windows_NT)
-    target="bematist-win32-x64.exe"
-    BIN_NAME="bematist.exe"
+    target="bm-pilot-win32-x64.exe"
+    BIN_NAME="bm-pilot.exe"
     ;;
   *)
     echo "unsupported OS: $os" >&2
@@ -36,7 +36,7 @@ url="$BASE_URL/$target"
 checksum_url="$url.sha256"
 
 mkdir -p "$INSTALL_DIR"
-tmp="$(mktemp "${TMPDIR:-/tmp}/bematist-XXXXXX")"
+tmp="$(mktemp "${TMPDIR:-/tmp}/bm-pilot-XXXXXX")"
 trap 'rm -f "$tmp" "$tmp.sha256"' EXIT
 
 echo "downloading $url"

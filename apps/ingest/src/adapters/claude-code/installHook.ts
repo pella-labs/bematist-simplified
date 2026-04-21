@@ -3,7 +3,7 @@ import { copyFile, mkdir, readFile, rename, unlink, writeFile } from "node:fs/pr
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
-export const HOOK_COMMAND = "bematist capture-git-sha";
+export const HOOK_COMMAND = "bm-pilot capture-git-sha";
 export const HOOK_TYPE = "command";
 export const HOOK_EVENT = "SessionStart";
 

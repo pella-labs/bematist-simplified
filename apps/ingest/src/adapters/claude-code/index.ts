@@ -7,7 +7,7 @@ import { createTailer } from "./tailer";
 export interface ClaudeCodeAdapterOptions {
   /** Override the watched projects directory. Default: ~/.claude/projects. */
   projectsDir?: string;
-  /** Override the ingest state directory. Default: ~/.bematist. */
+  /** Override the ingest state directory. Default: ~/.bm-pilot. */
   stateDir?: string;
   /** Override the settings.json path. Default: ~/.claude/settings.json. */
   settingsPath?: string;
@@ -27,7 +27,7 @@ export function createClaudeCodeAdapter(
     async start(emit: EmitFn): Promise<Stop> {
       const log = opts.log ?? (() => {});
       const projectsDir = opts.projectsDir ?? join(homedir(), ".claude", "projects");
-      const stateDir = opts.stateDir ?? join(homedir(), ".bematist");
+      const stateDir = opts.stateDir ?? join(homedir(), ".bm-pilot");
 
       if (!opts.skipInstallHook) {
         try {

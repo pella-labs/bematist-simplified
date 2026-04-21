@@ -25,7 +25,7 @@ export type Config = z.infer<typeof ConfigSchema>;
 export const DEFAULT_API_URL = "http://localhost:8000";
 
 export function defaultConfigPath(home: string = homedir()): string {
-  return join(home, ".bematist", "config.json");
+  return join(home, ".bm-pilot", "config.json");
 }
 
 export function freshConfig(apiUrl: string = DEFAULT_API_URL): Config {

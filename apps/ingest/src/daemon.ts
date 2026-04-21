@@ -30,7 +30,7 @@ export async function startDaemon(opts: DaemonOptions): Promise<DaemonHandle> {
   const log = opts.log ?? defaultLog;
 
   if (!config.ingestKey) {
-    throw new Error("not logged in: run `bematist login` first");
+    throw new Error("not logged in: run `bm-pilot login` first");
   }
 
   const uploader = new Uploader({
@@ -98,7 +98,7 @@ export async function startDaemon(opts: DaemonOptions): Promise<DaemonHandle> {
   }
 
   log(
-    `bematist daemon running — api=${config.apiUrl} adapters=${adapters.map((a) => a.name).join(",")}`,
+    `bm-pilot daemon running — api=${config.apiUrl} adapters=${adapters.map((a) => a.name).join(",")}`,
   );
 
   return {
@@ -154,5 +154,5 @@ function errMessage(err: unknown): string {
 }
 
 function defaultLog(msg: string): void {
-  console.log(`[bematist] ${msg}`);
+  console.log(`[bm-pilot] ${msg}`);
 }

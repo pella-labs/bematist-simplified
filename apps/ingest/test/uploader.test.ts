@@ -72,7 +72,7 @@ describe("Uploader", () => {
     const headers = new Headers(calls[0].init.headers);
     expect(headers.get("authorization")).toBe("Bearer bm_test_key_secret");
     expect(headers.get("content-type")).toBe("application/json");
-    expect(headers.get("user-agent")).toBe("bematist-ingest/0.1.0");
+    expect(headers.get("user-agent")).toBe("bm-pilot-ingest/0.1.0");
     expect(calls[0].init.method).toBe("POST");
   });
 

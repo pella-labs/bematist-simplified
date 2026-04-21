@@ -38,9 +38,9 @@ function makeHarness(): Harness {
   tmpRoots.push(root);
   const sessionsDir = join(root, "sessions", "2026", "04", "16");
   mkdirSync(sessionsDir, { recursive: true });
-  const offsetsPath = join(root, "bematist", "offsets.json");
-  const offsetsLockPath = join(root, "bematist", "offsets.lock");
-  mkdirSync(join(root, "bematist"), { recursive: true });
+  const offsetsPath = join(root, "bm-pilot", "offsets.json");
+  const offsetsLockPath = join(root, "bm-pilot", "offsets.lock");
+  mkdirSync(join(root, "bm-pilot"), { recursive: true });
   return { root, sessionsDir, offsetsPath, offsetsLockPath, events: [] };
 }
 

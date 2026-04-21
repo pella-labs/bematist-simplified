@@ -23,7 +23,7 @@ jobs:
       - name: generate sha256 sidecars
         working-directory: apps/ingest/dist
         run: |
-          for f in bematist-*; do
+          for f in bm-pilot-*; do
             sha256sum "$f" | awk '{print $1}' > "$f.sha256"
           done
           ls -la
@@ -31,13 +31,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            apps/ingest/dist/bematist-darwin-arm64
-            apps/ingest/dist/bematist-darwin-arm64.sha256
-            apps/ingest/dist/bematist-darwin-x64
-            apps/ingest/dist/bematist-darwin-x64.sha256
-            apps/ingest/dist/bematist-linux-x64
-            apps/ingest/dist/bematist-linux-x64.sha256
-            apps/ingest/dist/bematist-win32-x64.exe
-            apps/ingest/dist/bematist-win32-x64.exe.sha256
+            apps/ingest/dist/bm-pilot-darwin-arm64
+            apps/ingest/dist/bm-pilot-darwin-arm64.sha256
+            apps/ingest/dist/bm-pilot-darwin-x64
+            apps/ingest/dist/bm-pilot-darwin-x64.sha256
+            apps/ingest/dist/bm-pilot-linux-x64
+            apps/ingest/dist/bm-pilot-linux-x64.sha256
+            apps/ingest/dist/bm-pilot-win32-x64.exe
+            apps/ingest/dist/bm-pilot-win32-x64.exe.sha256
           fail_on_unmatched_files: true
           generate_release_notes: true

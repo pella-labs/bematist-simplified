@@ -36,7 +36,7 @@ describe("runCursorHook", () => {
     });
     try {
       const code = await runCursorHook({
-        argv: ["bun", "bematist", "cursor-hook"],
+        argv: ["bun", "bm-pilot", "cursor-hook"],
         stdin: stdinFrom('{"hook_event_name":"sessionStart","session_id":"s1"}'),
         socketAddress: socketPath,
         errorLogPath,
@@ -62,7 +62,7 @@ describe("runCursorHook", () => {
     });
     try {
       const code = await runCursorHook({
-        argv: ["bun", "bematist", "cursor-hook", "beforeSubmitPrompt"],
+        argv: ["bun", "bm-pilot", "cursor-hook", "beforeSubmitPrompt"],
         stdin: stdinFrom('{"session_id":"s2","prompt":"hi"}'),
         socketAddress: socketPath,
         errorLogPath,
@@ -80,7 +80,7 @@ describe("runCursorHook", () => {
     const deadSocket = join(dir, "does-not-exist.sock");
     const start = Date.now();
     const code = await runCursorHook({
-      argv: ["bun", "bematist", "cursor-hook", "sessionStart"],
+      argv: ["bun", "bm-pilot", "cursor-hook", "sessionStart"],
       stdin: stdinFrom('{"session_id":"s3"}'),
       socketAddress: deadSocket,
       errorLogPath,
@@ -106,7 +106,7 @@ describe("runCursorHook", () => {
     });
     try {
       const code = await runCursorHook({
-        argv: ["bun", "bematist", "cursor-hook", "sessionStart"],
+        argv: ["bun", "bm-pilot", "cursor-hook", "sessionStart"],
         stdin: stdinFrom("not json"),
         socketAddress: socketPath,
         errorLogPath,

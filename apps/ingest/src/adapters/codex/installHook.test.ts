@@ -76,15 +76,15 @@ describe("installCodexHook", () => {
 
   it("mergeHook — replaces existing entry with same marker rather than duplicating", () => {
     const stale = {
-      hooks: [{ id: HOOK_MARKER, event: "SessionStart", command: "/old/bematist capture-git-sha" }],
+      hooks: [{ id: HOOK_MARKER, event: "SessionStart", command: "/old/bm-pilot capture-git-sha" }],
     };
     const res = mergeHook(stale, {
       marker: HOOK_MARKER,
-      binary: "/new/bematist",
+      binary: "/new/bm-pilot",
       queueDir: "/q",
     });
     const hooks = res.value.hooks as Array<{ id: string; command: string }>;
     expect(hooks.filter((h) => h.id === HOOK_MARKER).length).toBe(1);
-    expect(hooks[0]?.command).toContain("/new/bematist");
+    expect(hooks[0]?.command).toContain("/new/bm-pilot");
   });
 });

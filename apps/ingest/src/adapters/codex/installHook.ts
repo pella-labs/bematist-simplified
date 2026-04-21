@@ -16,7 +16,7 @@ export interface InstallHookResult {
   path: string | null;
 }
 
-export const HOOK_MARKER = "bematist-codex-session-start";
+export const HOOK_MARKER = "bm-pilot-codex-session-start";
 
 export async function installCodexHook(opts: InstallHookOptions = {}): Promise<InstallHookResult> {
   const platform = opts.platform ?? process.platform;
@@ -28,8 +28,8 @@ export async function installCodexHook(opts: InstallHookOptions = {}): Promise<I
 
   const home = opts.home ?? homedir();
   const hooksPath = join(home, ".codex", "hooks.json");
-  const queueDir = opts.gitShaQueueDir ?? join(home, ".bematist", "git-sha-queue");
-  const binary = opts.binaryPath ?? "bematist";
+  const queueDir = opts.gitShaQueueDir ?? join(home, ".bm-pilot", "git-sha-queue");
+  const binary = opts.binaryPath ?? "bm-pilot";
 
   await mkdir(dirname(hooksPath), { recursive: true });
   await mkdir(queueDir, { recursive: true });

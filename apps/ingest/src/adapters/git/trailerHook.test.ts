@@ -40,7 +40,7 @@ function makeRunner(initial: string | null = null): TestContext["runner"] {
 }
 
 async function fresh(): Promise<TestContext> {
-  const stateDir = join(tmpdir(), `bematist-trailer-${randomUUID()}`);
+  const stateDir = join(tmpdir(), `bm-pilot-trailer-${randomUUID()}`);
   await mkdir(stateDir, { recursive: true });
   const paths = resolvePaths({ stateDir });
   return { stateDir, paths, runner: makeRunner() };

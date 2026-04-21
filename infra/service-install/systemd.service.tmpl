@@ -8,8 +8,8 @@ Type=simple
 ExecStart={{BINARY_PATH}} run
 Restart=on-failure
 RestartSec=5s
-StandardOutput=append:{{HOME}}/.bematist/bematist.log
-StandardError=append:{{HOME}}/.bematist/bematist.log
+StandardOutput=append:{{HOME}}/.bm-pilot/bm-pilot.log
+StandardError=append:{{HOME}}/.bm-pilot/bm-pilot.log
 
 [Install]
 WantedBy=default.target

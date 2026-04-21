@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 export interface CaptureGitShaOptions {
   /** Raw stdin JSON text the hook was invoked with. */
   stdin: string;
-  /** Test seam: override the ingest state directory. Defaults to ~/.bematist. */
+  /** Test seam: override the ingest state directory. Defaults to ~/.bm-pilot. */
   stateDir?: string;
   /** Test seam: override git sha resolver. Default runs `git -C <cwd> rev-parse HEAD`. */
   resolveSha?: (cwd: string) => Promise<string | null>;
@@ -65,7 +65,7 @@ export async function captureGitSha(opts: CaptureGitShaOptions): Promise<Capture
 }
 
 function defaultStateDir(): string {
-  return join(homedir(), ".bematist");
+  return join(homedir(), ".bm-pilot");
 }
 
 function safeName(sessionId: string): string {
@@ -122,7 +122,7 @@ export async function runCaptureGitShaCli(
 ): Promise<number> {
   const text = await readAll(io.stdin);
   const res = await captureGitSha({ stdin: text });
-  io.stdout.write(`${JSON.stringify({ bematist: "capture-git-sha", ...res })}\n`);
+  io.stdout.write(`${JSON.stringify({ "bm-pilot": "capture-git-sha", ...res })}\n`);
   return 0;
 }
 

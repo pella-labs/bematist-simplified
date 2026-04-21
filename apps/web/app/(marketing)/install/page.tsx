@@ -62,7 +62,7 @@ export default function InstallPage() {
               {
                 id: "install-cmd-serve",
                 kind: "command",
-                text: "bematist serve --token $BEMATIST_TOKEN",
+                text: "bm-pilot serve --token $BM_PILOT_TOKEN",
               },
             ]}
           />

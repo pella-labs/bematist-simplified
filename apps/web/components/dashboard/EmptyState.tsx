@@ -22,7 +22,7 @@ export function NoSessionsEmpty() {
         <>
           Install the binary to start streaming telemetry. Run{" "}
           <code>curl -fsSL https://web-production-0aec1.up.railway.app/install.sh | sh</code> on a
-          developer machine, then <code>bematist login</code> and <code>bematist run</code>.
+          developer machine, then <code>bm-pilot login</code> and <code>bm-pilot run</code>.
         </>
       }
     />

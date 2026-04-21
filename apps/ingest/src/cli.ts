@@ -23,7 +23,7 @@ export interface CliIO {
 export async function run(io: CliIO): Promise<number> {
   const [, , rawCmd, ...args] = io.argv;
   const cmd = rawCmd ?? "help";
-  const path = io.configPath ?? io.env.BEMATIST_CONFIG ?? defaultConfigPath();
+  const path = io.configPath ?? io.env.BM_PILOT_CONFIG ?? defaultConfigPath();
   const log = (msg: string) => io.stdout.write(`${msg}\n`);
   const err = (msg: string) => io.stderr.write(`${msg}\n`);
 
@@ -65,25 +65,25 @@ export async function run(io: CliIO): Promise<number> {
 
 function usage(): string {
   return [
-    "bematist — developer telemetry ingest",
+    "bm-pilot — developer telemetry ingest",
     "",
     "Usage:",
-    "  bematist login            Paste an ingest key to authenticate",
-    "  bematist logout           Clear the stored ingest key",
-    "  bematist status           Show current configuration",
-    "  bematist run              Start the telemetry daemon in foreground",
-    "  bematist uninstall        Print the removal checklist",
-    "  bematist cursor enable    Enable Cursor adapter (prompts for hooks install)",
-    "  bematist cursor disable   Disable Cursor adapter (removes hooks entries)",
-    "  bematist git enable       Install the global prepare-commit-msg trailer hook",
-    "  bematist git disable      Remove the trailer hook + restore prior core.hooksPath",
-    "  bematist git status       Report trailer-hook install state",
-    "  bematist version          Print the client version",
-    "  bematist help             Show this message",
+    "  bm-pilot login            Paste an ingest key to authenticate",
+    "  bm-pilot logout           Clear the stored ingest key",
+    "  bm-pilot status           Show current configuration",
+    "  bm-pilot run              Start the telemetry daemon in foreground",
+    "  bm-pilot uninstall        Print the removal checklist",
+    "  bm-pilot cursor enable    Enable Cursor adapter (prompts for hooks install)",
+    "  bm-pilot cursor disable   Disable Cursor adapter (removes hooks entries)",
+    "  bm-pilot git enable       Install the global prepare-commit-msg trailer hook",
+    "  bm-pilot git disable      Remove the trailer hook + restore prior core.hooksPath",
+    "  bm-pilot git status       Report trailer-hook install state",
+    "  bm-pilot version          Print the client version",
+    "  bm-pilot help             Show this message",
     "",
     "Internal (invoked by editor hooks, not users):",
-    "  bematist capture-git-sha  Claude Code / Codex SessionStart hook handler",
-    "  bematist cursor-hook      Cursor hook event forwarder",
+    "  bm-pilot capture-git-sha  Claude Code / Codex SessionStart hook handler",
+    "  bm-pilot cursor-hook      Cursor hook event forwarder",
     "",
     `Config path: ${defaultConfigPath()}`,
   ].join("\n");
@@ -95,7 +95,7 @@ async function cmdLogin(
   log: (m: string) => void,
   err: (m: string) => void,
 ): Promise<number> {
-  const current = (await readConfig(path)) ?? freshConfig(io.env.BEMATIST_API_URL ?? undefined);
+  const current = (await readConfig(path)) ?? freshConfig(io.env.BM_PILOT_API_URL ?? undefined);
   const prompts = {
     async prompt(q: string): Promise<string> {
       if (io.prompt) return io.prompt(q);
@@ -169,7 +169,7 @@ async function cmdRun(
 ): Promise<number> {
   const current = await readConfig(path);
   if (!current?.ingestKey) {
-    err("not logged in — run `bematist login` first");
+    err("not logged in — run `bm-pilot login` first");
     return 1;
   }
   try {
@@ -189,9 +189,9 @@ async function cmdRun(
 }
 
 async function cmdUninstall(path: string, log: (m: string) => void): Promise<number> {
-  log("To fully uninstall bematist:");
-  log("  1. Stop any running `bematist run` process");
-  log("  2. Remove the binary: rm ~/.local/bin/bematist");
+  log("To fully uninstall bm-pilot:");
+  log("  1. Stop any running `bm-pilot run` process");
+  log("  2. Remove the binary: rm ~/.local/bin/bm-pilot");
   log(`  3. Remove config + state: rm -rf ${pathParent(path)}`);
   log("  4. Revoke the ingest key in the dashboard");
   return 0;
@@ -217,7 +217,7 @@ async function cmdCursor(
 ): Promise<number> {
   const sub = args[0];
   if (!sub || (sub !== "enable" && sub !== "disable")) {
-    err("usage: bematist cursor <enable|disable>");
+    err("usage: bm-pilot cursor <enable|disable>");
     return 2;
   }
   try {
@@ -260,7 +260,7 @@ async function cmdGit(
 ): Promise<number> {
   const sub = args[0];
   if (!sub || (sub !== "enable" && sub !== "disable" && sub !== "status")) {
-    err("usage: bematist git <enable|disable|status>");
+    err("usage: bm-pilot git <enable|disable|status>");
     return 2;
   }
   try {

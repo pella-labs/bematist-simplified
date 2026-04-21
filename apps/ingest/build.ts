@@ -8,10 +8,10 @@ interface Target {
 }
 
 const TARGETS: Target[] = [
-  { key: "darwin-arm64", triple: "bun-darwin-arm64", outfile: "bematist-darwin-arm64" },
-  { key: "darwin-x64", triple: "bun-darwin-x64", outfile: "bematist-darwin-x64" },
-  { key: "linux-x64", triple: "bun-linux-x64", outfile: "bematist-linux-x64" },
-  { key: "win32-x64", triple: "bun-windows-x64", outfile: "bematist-win32-x64.exe" },
+  { key: "darwin-arm64", triple: "bun-darwin-arm64", outfile: "bm-pilot-darwin-arm64" },
+  { key: "darwin-x64", triple: "bun-darwin-x64", outfile: "bm-pilot-darwin-x64" },
+  { key: "linux-x64", triple: "bun-linux-x64", outfile: "bm-pilot-linux-x64" },
+  { key: "win32-x64", triple: "bun-windows-x64", outfile: "bm-pilot-win32-x64.exe" },
 ];
 
 const root = new URL(".", import.meta.url).pathname;

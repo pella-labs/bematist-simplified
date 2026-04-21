@@ -29,7 +29,7 @@ export default async function AdminKeysPage() {
             <h1 className="dash-page-title">Ingest keys</h1>
             <p className="dash-page-subtitle">
               Create a key per developer. Paste the plaintext into{" "}
-              <code className="dash-mono">bematist login</code> once; we only store the SHA256 so
+              <code className="dash-mono">bm-pilot login</code> once; we only store the SHA256 so
               you cannot retrieve it later.
             </p>
             <div className="dash-page-actions">
@@ -65,7 +65,7 @@ export default async function AdminKeysPage() {
                     <h3 className="dash-empty-title">No keys issued yet</h3>
                     <p className="dash-empty-body">
                       Create one above — the developer uses it with{" "}
-                      <code>bematist login --key &lt;…&gt;</code>.
+                      <code>bm-pilot login --key &lt;…&gt;</code>.
                     </p>
                   </div>
                 </div>

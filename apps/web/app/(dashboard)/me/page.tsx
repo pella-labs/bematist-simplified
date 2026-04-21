@@ -30,7 +30,7 @@ export default async function MeDashboardPage() {
             We could not find a developer record tied to your account. Ask your admin to link this
             email <code className="dash-mono">{session.user.email}</code> to a developer in{" "}
             {session.org.name}, or install the binary and run{" "}
-            <code className="dash-mono">bematist login</code>.
+            <code className="dash-mono">bm-pilot login</code>.
           </p>
         </header>
         <Link href="/install" className="dash-btn is-primary" style={{ alignSelf: "flex-start" }}>

@@ -125,5 +125,5 @@ async function logError(path: string, ts: string, err: unknown): Promise<void> {
 }
 
 function defaultErrorLogPath(home: string = homedir()): string {
-  return join(home, ".bematist", "cursor-hook-errors.log");
+  return join(home, ".bm-pilot", "cursor-hook-errors.log");
 }

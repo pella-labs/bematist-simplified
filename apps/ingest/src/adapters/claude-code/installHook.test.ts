@@ -8,7 +8,7 @@ let tmp: string;
 let settingsPath: string;
 
 beforeEach(async () => {
-  tmp = await mkdtemp(join(tmpdir(), "bematist-hook-"));
+  tmp = await mkdtemp(join(tmpdir(), "bm-pilot-hook-"));
   await mkdir(join(tmp, ".claude"), { recursive: true });
   settingsPath = join(tmp, ".claude", "settings.json");
 });
@@ -78,7 +78,7 @@ describe("installClaudeSessionStartHook", () => {
     const seed1 = { someKey: 1 };
     await writeFile(settingsPath, JSON.stringify(seed1));
     await installClaudeSessionStartHook({ settingsPath });
-    // Mutate the file by hand, then add a second bematist run.
+    // Mutate the file by hand, then add a second bm-pilot run.
     const current = JSON.parse(await readFile(settingsPath, "utf8"));
     delete current.hooks;
     current.someKey = 2;
@@ -93,10 +93,10 @@ describe("installClaudeSessionStartHook", () => {
     const res2 = await installClaudeSessionStartHook({ settingsPath });
     expect(res2.changed).toBe(false);
     const written = JSON.parse(await readFile(settingsPath, "utf8"));
-    const bematistEntries = written.hooks.SessionStart.flatMap(
+    const bmPilotEntries = written.hooks.SessionStart.flatMap(
       (g: { hooks: { command: string }[] }) => g.hooks,
     ).filter((h: { command: string }) => h.command === HOOK_COMMAND);
-    expect(bematistEntries).toHaveLength(1);
+    expect(bmPilotEntries).toHaveLength(1);
   });
 
   it("does not write .bak when there was no prior file", async () => {

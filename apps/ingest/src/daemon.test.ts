@@ -12,7 +12,7 @@ let sessionPath: string;
 let baseConfig: Config;
 
 beforeEach(async () => {
-  dir = join(tmpdir(), `bematist-daemon-${randomUUID()}`);
+  dir = join(tmpdir(), `bm-pilot-daemon-${randomUUID()}`);
   await mkdir(dir, { recursive: true });
   sessionPath = join(dir, "current-session");
   server = Bun.serve({
