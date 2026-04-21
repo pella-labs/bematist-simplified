@@ -32,12 +32,24 @@ if (selected.length === 0) {
 await rm(distDir, { recursive: true, force: true });
 await mkdir(distDir, { recursive: true });
 
+const version = process.env.BM_PILOT_VERSION ?? "0.0.0-dev";
+console.log(`[build] version=${version}`);
+
 let failed = 0;
 for (const t of selected) {
   const outfile = join(distDir, t.outfile);
   console.log(`[build] ${t.key} -> ${outfile}`);
   const proc = Bun.spawn({
-    cmd: ["bun", "build", "--compile", `--target=${t.triple}`, entry, `--outfile=${outfile}`],
+    cmd: [
+      "bun",
+      "build",
+      "--compile",
+      `--target=${t.triple}`,
+      "--define",
+      `process.env.BM_PILOT_VERSION=${JSON.stringify(version)}`,
+      entry,
+      `--outfile=${outfile}`,
+    ],
     cwd: root,
     stdout: "inherit",
     stderr: "inherit",

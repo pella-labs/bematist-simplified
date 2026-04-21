@@ -19,6 +19,8 @@ jobs:
           bun-version: 1.2.0
       - run: bun install --frozen-lockfile
       - name: compile 4 binaries
+        env:
+          BM_PILOT_VERSION: ${{ github.ref_name }}
         run: bun run --cwd apps/ingest build:binary
       - name: generate sha256 sidecars
         working-directory: apps/ingest/dist

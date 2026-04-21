@@ -12,7 +12,9 @@ import { Batcher } from "./batcher";
 import type { Config } from "./config";
 import { Uploader } from "./uploader";
 
-export const CLIENT_VERSION = "0.1.0";
+// Baked in at compile time via `bun build --define`. See apps/ingest/build.ts
+// and .github/workflows/release.yml. Fallback is for local `bun run` during dev.
+export const CLIENT_VERSION = process.env.BM_PILOT_VERSION ?? "0.0.0-dev";
 
 export interface DaemonHandle {
   stop: Stop;
