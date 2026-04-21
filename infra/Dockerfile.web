@@ -25,6 +25,19 @@ COPY packages/auth ./packages/auth
 COPY packages/embed ./packages/embed
 RUN mkdir -p apps/web/install-script \
     && cp apps/ingest/scripts/install.sh apps/web/install-script/install.sh
+# Dummy build-time envs. Next.js 16 executes every route module during
+# "Collecting page data" and better-auth/drizzle initialize clients at module
+# scope. Railway injects real values at runtime which override these.
+ENV DATABASE_URL="postgresql://noop:noop@localhost:5432/noop" \
+    ADMIN_DATABASE_URL="postgresql://noop:noop@localhost:5432/noop" \
+    BETTER_AUTH_SECRET="build-time-placeholder-secret-unused-at-build" \
+    BETTER_AUTH_URL="http://localhost:3000" \
+    BETTER_AUTH_TRUSTED_ORIGINS="http://localhost:3000" \
+    GITHUB_CLIENT_ID="build" \
+    GITHUB_CLIENT_SECRET="build" \
+    GITHUB_APP_ID="0" \
+    GITHUB_APP_SLUG="build" \
+    INGEST_API_URL="http://localhost:8000"
 RUN bun run --cwd apps/web build
 
 FROM base AS runtime
