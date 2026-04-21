@@ -2,7 +2,14 @@ import { githubInstallations } from "@bematist/db/schema";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { NextResponse } from "next/server";
-import { adminConnection, requireSession, withOrgScope } from "@/lib/session";
+// Lazy runtime import for `@/lib/session` keeps Better-Auth, `server-only`,
+// and a live Postgres client out of this module's top-level graph so the
+// route can be unit-tested under Bun via the CallbackDeps seam.
+import type { SessionContext, withOrgScope as WithOrgScopeT } from "@/lib/session";
+import {
+  type BackfillDeps,
+  backfillReposForInstallation as defaultBackfill,
+} from "../../../../lib/githubRepos";
 
 function baseURL(): string {
   return process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
@@ -13,8 +20,50 @@ function redirectBack(params: URLSearchParams): Response {
   return NextResponse.redirect(url, 303);
 }
 
-export async function GET(req: Request): Promise<Response> {
-  const session = await requireSession();
+export interface CallbackDeps {
+  requireSession: () => Promise<SessionContext>;
+  /** Look up any existing installation row by `installation_id`. */
+  lookupInstallationOwner: (
+    installationId: number,
+  ) => Promise<{ orgId: string; status: string } | null>;
+  withOrgScope: typeof WithOrgScopeT;
+  backfill: (
+    input: { orgId: string; installationId: number },
+    deps?: BackfillDeps,
+  ) => Promise<{ ok: boolean; reason?: string; count?: number }>;
+  backfillDeps?: BackfillDeps;
+}
+
+async function defaultLookupInstallationOwner(
+  installationId: number,
+): Promise<{ orgId: string; status: string } | null> {
+  const { adminConnection } = await import("@/lib/session");
+  const { sql, close } = adminConnection();
+  try {
+    const adminDb = drizzle(sql);
+    const rows = await adminDb
+      .select({ orgId: githubInstallations.orgId, status: githubInstallations.status })
+      .from(githubInstallations)
+      .where(eq(githubInstallations.installationId, installationId))
+      .limit(1);
+    return rows[0] ?? null;
+  } finally {
+    await close();
+  }
+}
+
+async function productionDeps(): Promise<CallbackDeps> {
+  const session = await import("@/lib/session");
+  return {
+    requireSession: session.requireSession,
+    lookupInstallationOwner: defaultLookupInstallationOwner,
+    withOrgScope: session.withOrgScope,
+    backfill: defaultBackfill,
+  };
+}
+
+export async function handleCallback(req: Request, deps: CallbackDeps): Promise<Response> {
+  const session = await deps.requireSession();
   if (session.role !== "admin") {
     return NextResponse.redirect(new URL("/?forbidden=admin-only", baseURL()), 303);
   }
@@ -37,28 +86,16 @@ export async function GET(req: Request): Promise<Response> {
   // Claim the installation for this org. Another org claiming the same
   // installation_id is a conflict — we refuse with a message rather than
   // silently moving ownership.
-  const { sql, close } = adminConnection();
-  try {
-    const adminDb = drizzle(sql);
-    const existing = await adminDb
-      .select({ orgId: githubInstallations.orgId, status: githubInstallations.status })
-      .from(githubInstallations)
-      .where(eq(githubInstallations.installationId, installationId))
-      .limit(1);
-
-    const row = existing[0];
-    if (row && row.orgId !== session.org.id) {
-      const p = new URLSearchParams({
-        status: "err",
-        message: "Installation already linked to another organisation.",
-      });
-      return redirectBack(p);
-    }
-  } finally {
-    await close();
+  const existing = await deps.lookupInstallationOwner(installationId);
+  if (existing && existing.orgId !== session.org.id) {
+    const p = new URLSearchParams({
+      status: "err",
+      message: "Installation already linked to another organisation.",
+    });
+    return redirectBack(p);
   }
 
-  await withOrgScope(session.org.id, async (tx) => {
+  await deps.withOrgScope(session.org.id, async (tx) => {
     await tx
       .insert(githubInstallations)
       .values({
@@ -72,6 +109,16 @@ export async function GET(req: Request): Promise<Response> {
       });
   });
 
+  // Best-effort repo backfill. The installation.created webhook is the
+  // primary path; this closes the gap where the webhook is delayed,
+  // misconfigured, or never fires on a manual install. Any error is logged
+  // and swallowed — the redirect must succeed regardless.
+  try {
+    await deps.backfill({ orgId: session.org.id, installationId }, deps.backfillDeps);
+  } catch (err) {
+    console.error("[admin/github/callback] repo backfill failed", err);
+  }
+
   const p = new URLSearchParams({
     status: "ok",
     message:
@@ -80,4 +127,8 @@ export async function GET(req: Request): Promise<Response> {
         : "Installation connected. Push a commit to see data flow in.",
   });
   return redirectBack(p);
+}
+
+export async function GET(req: Request): Promise<Response> {
+  return handleCallback(req, await productionDeps());
 }
