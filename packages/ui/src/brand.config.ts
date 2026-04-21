@@ -6,8 +6,8 @@ export const brand = {
     "Per-developer AI-coding telemetry. See the ROI of Claude Code, Codex, and Cursor across your team, and what you would have paid on API pricing.",
   ctaPrimary: { label: "Sign in with GitHub", href: "/auth/sign-in" },
   ctaSecondary: { label: "Install the collector", href: "/install" },
-  installCommand: "curl -fsSL https://bematist.up.railway.app/install.sh | sh",
-  installHost: "bematist.up.railway.app",
+  installCommand: "curl -fsSL https://bm-pilot.up.railway.app/install.sh | sh",
+  installHost: "bm-pilot.up.railway.app",
   github: "https://github.com/pella-labs/bematist-simplified",
   footerTagline: "Prompt-level AI-coding telemetry. Ship the signal, skip the vanity.",
   tools: [

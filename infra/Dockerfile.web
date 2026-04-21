@@ -1,0 +1,35 @@
+FROM oven/bun:1.2-slim AS base
+WORKDIR /app
+
+FROM base AS deps
+COPY package.json bun.lock tsconfig.base.json ./
+COPY scripts ./scripts
+COPY apps/web/package.json ./apps/web/package.json
+COPY apps/ingest/package.json ./apps/ingest/package.json
+COPY packages/ui/package.json ./packages/ui/package.json
+COPY packages/contracts/package.json ./packages/contracts/package.json
+COPY packages/db/package.json ./packages/db/package.json
+COPY packages/auth/package.json ./packages/auth/package.json
+COPY packages/embed/package.json ./packages/embed/package.json
+RUN bun install --frozen-lockfile
+
+FROM deps AS build
+COPY apps/web ./apps/web
+COPY apps/ingest/scripts ./apps/ingest/scripts
+COPY packages/ui ./packages/ui
+COPY packages/contracts ./packages/contracts
+COPY packages/db ./packages/db
+COPY packages/auth ./packages/auth
+COPY packages/embed ./packages/embed
+RUN mkdir -p apps/web/install-script \
+    && cp apps/ingest/scripts/install.sh apps/web/install-script/install.sh
+RUN bun run --cwd apps/web build
+
+FROM base AS runtime
+ENV NODE_ENV=production
+ENV PORT=3000
+COPY --from=build /app /app
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD bun -e "fetch('http://127.0.0.1:'+ (process.env.PORT||3000) +'/install.sh').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+CMD ["bun", "run", "--cwd", "apps/web", "start"]

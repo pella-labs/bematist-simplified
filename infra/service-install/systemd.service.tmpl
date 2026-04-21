@@ -1,0 +1,15 @@
+[Unit]
+Description=Bematist telemetry collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart={{BINARY_PATH}} run
+Restart=on-failure
+RestartSec=5s
+StandardOutput=append:{{HOME}}/.bematist/bematist.log
+StandardError=append:{{HOME}}/.bematist/bematist.log
+
+[Install]
+WantedBy=default.target

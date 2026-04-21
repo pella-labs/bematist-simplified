@@ -1,0 +1,19 @@
+FROM oven/bun:1.2-slim AS base
+WORKDIR /app
+
+FROM base AS deps
+COPY package.json bun.lock tsconfig.base.json ./
+COPY scripts ./scripts
+COPY apps/worker/package.json ./apps/worker/package.json
+COPY packages/contracts/package.json ./packages/contracts/package.json
+COPY packages/db/package.json ./packages/db/package.json
+COPY packages/embed/package.json ./packages/embed/package.json
+RUN bun install --frozen-lockfile
+
+FROM deps AS runtime
+ENV NODE_ENV=production
+COPY apps/worker ./apps/worker
+COPY packages/contracts ./packages/contracts
+COPY packages/db ./packages/db
+COPY packages/embed ./packages/embed
+CMD ["bun", "run", "--cwd", "apps/worker", "start"]

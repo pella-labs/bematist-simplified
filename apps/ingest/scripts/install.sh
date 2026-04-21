@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${BEMATIST_BINARY_BASE_URL:-https://bematist-binaries.invalid/placeholder}"
+BASE_URL="${BEMATIST_BINARY_BASE_URL:-https://github.com/pella-labs/bematist-simplified/releases/latest/download}"
 INSTALL_DIR="${BEMATIST_INSTALL_DIR:-$HOME/.local/bin}"
 BIN_NAME="bematist"
 
@@ -23,9 +23,8 @@ case "$os" in
     esac
     ;;
   MINGW*|MSYS*|CYGWIN*|Windows_NT)
-    echo "Windows install is TBD — this will ship in WS-14." >&2
-    echo "For now, download bematist-win32-x64.exe from the dashboard once WS-14 lands." >&2
-    exit 1
+    target="bematist-win32-x64.exe"
+    BIN_NAME="bematist.exe"
     ;;
   *)
     echo "unsupported OS: $os" >&2
@@ -72,4 +71,4 @@ trap - EXIT
 echo ""
 echo "installed $INSTALL_DIR/$BIN_NAME"
 echo "make sure $INSTALL_DIR is on your PATH, then run:"
-echo "  bematist login"
+echo "  $BIN_NAME login"

@@ -39,6 +39,9 @@ export function createFetchHandler(deps: ServerDeps): (req: Request) => Promise<
       if (req.method === "GET" && url.pathname === "/health") {
         return healthRoute();
       }
+      if (req.method === "GET" && url.pathname === "/healthz") {
+        return healthRoute();
+      }
       if (req.method === "POST" && url.pathname === "/v1/events") {
         return await eventsRoute(req, deps.sql);
       }
